@@ -1,7 +1,9 @@
 import './style.css'
-import bowman from './assets/units/bowman.png'
-import general from './assets/units/general.png'
-import plain from './assets/landscapes/landscape-plain.webp'
+import bowman from 'src/assets/units/bowman.png'
+import general from 'src/assets/units/general.png'
+import plain from 'src/assets/landscapes/landscape-plain.webp'
+import { addNewUser } from './users'
+import { sendAction } from './action'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
@@ -80,10 +82,7 @@ let units1 = document.createElement('div')
 applyUnitsStyle(units1)
 visual.appendChild(units1)
 
-let allies: {}[] = [{ displayName: 'guy1', sprite: bowman }, { displayName: 'guy2', sprite: bowman }]
-let vasesToShow: {}[] = [{ displayName: 'Arthur', sprite: general }]
-
-function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLElement } {
+function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLImageElement, nameTag:HTMLElement } {
   let unitHolder = document.createElement('div')
 
   let homePlaceholder = document.createElement('div')
@@ -105,7 +104,7 @@ function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLElement 
   visualUnitTop.appendChild(nameHolder)
 
   let nameTag = document.createElement('span')
-  nameTag.textContent = 'cool guy'
+  nameTag.style.color = 'white'
   nameHolder.appendChild(nameTag)
 
   let outerHeroSprite = document.createElement('div')
@@ -119,13 +118,25 @@ function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLElement 
   heroSprite.style.aspectRatio = '1/1'
   heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
-  return { unitHolder: unitHolder, heroSprite: heroSprite }
+  return { unitHolder: unitHolder, heroSprite: heroSprite, nameTag: nameTag }
 }
 
-for (let ally of allies) {
+function putAlly(arg:{displayName:string, sprite:string}){
   let unitHolder = createUnitHolder()
+  unitHolder.heroSprite.src = arg.sprite
+  unitHolder.nameTag.textContent = arg.displayName
   units1.appendChild(unitHolder.unitHolder)
 }
+function putVas(arg:{displayName:string, sprite:string}){
+  let unitHolder = createUnitHolder()
+  unitHolder.heroSprite.style.transform = 'scaleX(-1)'
+  unitHolder.heroSprite.src = arg.sprite
+  unitHolder.nameTag.textContent = arg.displayName
+  units2.appendChild(unitHolder.unitHolder)
+}
+
+putAlly({displayName: 'cool guy', sprite: bowman})
+putAlly({displayName: 'friend', sprite: general})
 
 
 let centerPlaceHolder = document.createElement('div')
@@ -135,15 +146,16 @@ centerPlaceHolder.style.position = 'absolute'
 centerPlaceHolder.style.top = '50%'
 centerPlaceHolder.style.left = '50%'
 centerPlaceHolder.style.backgroundColor = 'blue'
+centerPlaceHolder.addEventListener('click',()=>{
+  // sendAction("")
+})
 visual.appendChild(centerPlaceHolder)
 
 let units2 = document.createElement('div')
 applyUnitsStyle(units2)
 visual.appendChild(units2)
-for (let vasToShow of vasesToShow) {
-  let unitHolder = createUnitHolder()
-  unitHolder.heroSprite.style.transform = 'scaleX(-1)'
-  units2.appendChild(unitHolder.unitHolder)
-}
+putVas({displayName:'Arthur', sprite:general})
+
+addNewUser("coolest")
 
 
