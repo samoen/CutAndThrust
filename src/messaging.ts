@@ -27,6 +27,7 @@ import {
 	type Player,
 	type PlayerInClient
 } from './users';
+import { worldReceived } from './ui';
 
 export const FAKE_LATENCY = 50;
 
@@ -50,35 +51,10 @@ export type MessageFromServer = {
 };
 
 export async function sendEveryoneWorld(triggeredBy: HeroId) {
-	await new Promise((r) => {
-		setTimeout(r, FAKE_LATENCY);
-	});
-	for (const user of users.values()) {
-		if (user.unitId != triggeredBy && user.connectionState.stream && user.connectionState.con) {
-			const toSend = buildNextMessage(user, triggeredBy);
-			let fail = false;
-			try {
-				user.connectionState.con.enqueue(encode(`world`, toSend));
-			} catch (e) {
-				console.log(user.displayName + ' failed to enqeue ' + e);
-				fail = true;
-			}
-			if (fail) {
-				try {
-					user.connectionState.con?.close();
-				} catch (e) {
-					console.log('failed to enque and failed to close!');
-				}
-				try {
-					// user.connectionState.stream?.cancel()
-				} catch (e) {
-					console.log('failed to enque and failed to cancel stream!');
-				}
-				user.connectionState.con = undefined;
-				user.connectionState.stream = undefined;
-			}
-			user.animations = [];
-		}
+for (const user of users.values()) {
+    const toSend = buildNextMessage(user, triggeredBy);
+    worldReceived(toSend);
+    user.animations = [];
 	}
 }
 
@@ -91,11 +67,6 @@ export function statusMapToStatusInClients(s: Map<StatusId, number>): StatusStat
 }
 
 export function buildNextMessage(forPlayer: Player, triggeredBy: HeroId): MessageFromServer {
-	// console.log(`sending anims ${JSON.stringify(forPlayer.animations)}`)
-	// for (const p of activePlayers()){
-	// 	console.log(`${p.heroName} is at ${JSON.stringify(p.currentUniqueSceneId)}`)
-	// }
-	// console.log(activePlayersInScene2(forPlayer.currentUniqueSceneId).length)
 	const scene = getSceneData(forPlayer);
 	const nextMsg: MessageFromServer = {
 		triggeredBy: triggeredBy,

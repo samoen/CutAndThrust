@@ -2,8 +2,10 @@ import './style.css'
 import bowman from 'src/assets/units/bowman.png'
 import general from 'src/assets/units/general.png'
 import plain from 'src/assets/landscapes/landscape-plain.webp'
-import { addNewUser } from './users'
-import { sendAction } from './action'
+import { addNewUser, users } from './users'
+import { buildNextMessage } from './messaging'
+import { updatePlayerActions } from './logic'
+import { worldReceived } from './ui'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
@@ -135,9 +137,6 @@ function putVas(arg:{displayName:string, sprite:string}){
   units2.appendChild(unitHolder.unitHolder)
 }
 
-putAlly({displayName: 'cool guy', sprite: bowman})
-putAlly({displayName: 'friend', sprite: general})
-
 
 let centerPlaceHolder = document.createElement('div')
 centerPlaceHolder.style.height = 'clamp(25px, 5vw + 1px, 50px)'
@@ -146,16 +145,23 @@ centerPlaceHolder.style.position = 'absolute'
 centerPlaceHolder.style.top = '50%'
 centerPlaceHolder.style.left = '50%'
 centerPlaceHolder.style.backgroundColor = 'blue'
-centerPlaceHolder.addEventListener('click',()=>{
-  // sendAction("")
-})
 visual.appendChild(centerPlaceHolder)
 
 let units2 = document.createElement('div')
 applyUnitsStyle(units2)
 visual.appendChild(units2)
-putVas({displayName:'Arthur', sprite:general})
 
-addNewUser("coolest")
+// putAlly({displayName: 'cool guy', sprite: bowman})
+// putAlly({displayName: 'friend', sprite: general})
+// putVas({displayName:'Arthur', sprite:general})
+let added = addNewUser("coolest")
+// let player = users.get("me")
+if(added){
+  updatePlayerActions(added.player)
+  let msg = buildNextMessage(added.player, added.player.unitId)
+  worldReceived(msg)
+
+  console.log(msg)
+}
 
 
