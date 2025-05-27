@@ -1,13 +1,18 @@
 import './style.css'
-import bowman from 'src/assets/units/bowman.png'
-import general from 'src/assets/units/general.png'
-import plain from 'src/assets/landscapes/landscape-plain.webp'
+import bowman from './assets/units/bowman.png'
 import { addNewUser, users } from './users'
-import { buildNextMessage } from './messaging'
-import { updatePlayerActions } from './logic'
-import { worldReceived } from './ui'
+import { buildNextMessage, type MessageFromServer } from './messaging'
+import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
+import { allVisualUnitProps, convoStateForEachVAS, visualLandscape, worldReceived, type UIVas, type VisualUnitProps } from './ui'
+import { anySprites, getLandscape } from './assets'
+import type { UnitId, VisualActionSourceId } from './utils'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
+
+export const bus = new EventTarget();
+export let unitElements : {element:HTMLElement, unitId: UnitId}[] = []
+export let vasElements : {element:HTMLElement, vasId: VisualActionSourceId}[] = []
+
 
 document.body.style.backgroundColor = 'aliceblue'
 document.body.style.padding = '0'
@@ -21,7 +26,7 @@ wrapGameField.style.overflowX = 'hidden'
 wrapGameField.style.backgroundColor = 'black';
 document.body.appendChild(wrapGameField)
 
-let yourSceneLabel = document.createElement('span')
+export let yourSceneLabel = document.createElement('span')
 yourSceneLabel.textContent = 'dungeon'
 yourSceneLabel.style.position = 'absolute'
 yourSceneLabel.style.paddingInline = '6px'
@@ -60,9 +65,11 @@ let bgAndGrad = document.createElement('div')
 bgAndGrad.style.position = 'relative'
 imageBackground.appendChild(bgAndGrad)
 
-let imageBackgroundImg = document.createElement('img')
+export let imageBackgroundImg = document.createElement('img')
 imageBackgroundImg.style.minWidth = '100vw'
-imageBackgroundImg.src = plain
+bus.addEventListener('ping',(event:Event)=>{
+  imageBackgroundImg.src = getLandscape(visualLandscape)
+})
 bgAndGrad.appendChild(imageBackgroundImg)
 
 let bgGrad = document.createElement('div')
@@ -80,20 +87,33 @@ let applyUnitsStyle = (units: HTMLDivElement) => {
   units.style.justifyContent = 'center'
   units.style.zIndex = '1'
 }
-let units1 = document.createElement('div')
+
+
+export let units1 = document.createElement('div')
 applyUnitsStyle(units1)
 visual.appendChild(units1)
+bus.addEventListener('ping',(event:Event)=>{
+  const customEvent = event as CustomEvent<EventDetail>;
+  let msg : EventDetail = customEvent.detail
+  for(let vup of msg.allVisualUnitProps){
+    if(!unitElements.some(ue=>ue.unitId == vup.actual.entity.unitId)){
+      putUnit({vup:vup})
+    }
+  }
+})
 
-function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLImageElement, nameTag:HTMLElement } {
-  let unitHolder = document.createElement('div')
+function createUnitAndArea(arg: {}): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement } {
+  let unitAndArea = document.createElement('div')
+  unitAndArea.style.display = 'flex'
+  unitAndArea.style.flexDirection = 'row'
 
   let homePlaceholder = document.createElement('div')
-  homePlaceholder.style.order = '1'
+  // homePlaceholder.style.order = '1'
   homePlaceholder.style.border = '2px dashed transparent'
   homePlaceholder.style.borderRadius = '10px'
   homePlaceholder.style.width = '50%'
   homePlaceholder.style.height = 'auto'
-  unitHolder.appendChild(homePlaceholder)
+  unitAndArea.appendChild(homePlaceholder)
 
   let visualUnitTop = document.createElement('div')
   visualUnitTop.style.transition = 'opacity 0.5s ease-in-out'
@@ -107,6 +127,7 @@ function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLImageEle
 
   let nameTag = document.createElement('span')
   nameTag.style.color = 'white'
+  // nameTag.textContent = arg.vup.ac
   nameHolder.appendChild(nameTag)
 
   let outerHeroSprite = document.createElement('div')
@@ -120,23 +141,57 @@ function createUnitHolder(): { unitHolder: HTMLElement, heroSprite: HTMLImageEle
   heroSprite.style.aspectRatio = '1/1'
   heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
-  return { unitHolder: unitHolder, heroSprite: heroSprite, nameTag: nameTag }
-}
 
-function putAlly(arg:{displayName:string, sprite:string}){
-  let unitHolder = createUnitHolder()
-  unitHolder.heroSprite.src = arg.sprite
-  unitHolder.nameTag.textContent = arg.displayName
-  units1.appendChild(unitHolder.unitHolder)
+  let guestAreaPlaceholder  = document.createElement('div')
+  guestAreaPlaceholder.style.zIndex = '2'
+  guestAreaPlaceholder.style.position = 'relative'
+  guestAreaPlaceholder.style.border = '2px dashed transparent'
+  guestAreaPlaceholder.style.borderRadius = '10px'
+  guestAreaPlaceholder.style.width = '50%'
+  guestAreaPlaceholder.style.height = 'auto'
+  guestAreaPlaceholder.style.backgroundColor = 'red'
+  unitAndArea.appendChild(guestAreaPlaceholder)
+
+
+  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder }
 }
-function putVas(arg:{displayName:string, sprite:string}){
-  let unitHolder = createUnitHolder()
+export type EventDetail = {
+  allVisualUnitProps: VisualUnitProps[]
+  uiVases: UIVas[]
+}
+export function putUnit(arg: { vup: VisualUnitProps }) {
+  let unitHolder = createUnitAndArea({})
+  unitHolder.heroSprite.src = arg.vup.sprite
+  unitHolder.nameTag.textContent = arg.vup.actual.entity.displayName
+  if (arg.vup.actual.kind == 'enemy') {
+    unitHolder.heroSprite.style.transform = 'scaleX(-1)'
+  }
+  let listen = (event: Event) => {
+    const customEvent = event as CustomEvent<EventDetail>;
+    let msg : EventDetail = customEvent.detail
+    let vup = msg.allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.vup.actual.entity.unitId)
+    console.log('unit event', vup)
+    if (vup) {
+      unitHolder.heroSprite.src = vup.sprite
+      unitHolder.nameTag.textContent = vup.actual.entity.displayName
+    }else{
+      bus.removeEventListener('ping',listen)
+      unitHolder.unitAndArea.remove()
+      unitElements = unitElements.filter(ue=>ue.unitId != arg.vup.actual.entity.unitId)
+    }
+  }
+  bus.addEventListener('ping', listen);
+  units1.appendChild(unitHolder.unitAndArea)
+  unitElements.push({element:unitHolder.unitAndArea,unitId:arg.vup.actual.entity.unitId})
+}
+export function putVas(arg: { uiVas: UIVas }) {
+  let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id })
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
-  unitHolder.heroSprite.src = arg.sprite
-  unitHolder.nameTag.textContent = arg.displayName
-  units2.appendChild(unitHolder.unitHolder)
+  unitHolder.heroSprite.src = anySprites[arg.uiVas.sprite]
+  unitHolder.nameTag.textContent = arg.uiVas.displayName
+  unitHolder.homePlaceholder.style.order = '1'
+  units2.appendChild(unitHolder.unitAndArea)
 }
-
 
 let centerPlaceHolder = document.createElement('div')
 centerPlaceHolder.style.height = 'clamp(25px, 5vw + 1px, 50px)'
@@ -148,20 +203,34 @@ centerPlaceHolder.style.backgroundColor = 'blue'
 visual.appendChild(centerPlaceHolder)
 
 let units2 = document.createElement('div')
+// units2.style.backgroundColor = 'red'
 applyUnitsStyle(units2)
 visual.appendChild(units2)
+bus.addEventListener('ping',(event:Event)=>{
+  const customEvent = event as CustomEvent<EventDetail>;
+  let msg : EventDetail = customEvent.detail
+  let uiVasesToShow = msg.uiVases.filter((s) => {
+     const csForE = convoStateForEachVAS.get(s.scene);
+     if (!csForE) return false;
+     const cs = csForE.get(s.id);
+     if (!cs) return false;
+     return !cs.isLocked;
+   });
+  for(let uiVas of uiVasesToShow){
+    if(!vasElements.some(ue=>ue.vasId == uiVas.id)){
+      putVas({uiVas:uiVas})
+    }
+  }
+})
 
-// putAlly({displayName: 'cool guy', sprite: bowman})
-// putAlly({displayName: 'friend', sprite: general})
-// putVas({displayName:'Arthur', sprite:general})
-let added = addNewUser("coolest")
-// let player = users.get("me")
-if(added){
+let added = addNewUser("cood")
+if (added) {
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   worldReceived(msg)
 
   console.log(msg)
+  console.log(allVisualUnitProps)
 }
 
 

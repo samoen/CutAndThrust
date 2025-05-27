@@ -1,18 +1,20 @@
-import { users, type Flag, type HeroName, type PlayerInClient } from 'src/users';
+import { users, type Flag, type HeroName, type PlayerInClient } from './users';
 
-import type { ItemId, ItemState } from 'src/items';
-import { handlePlayerAction, updateAllPlayerActions, type VisualActionSourceInClient } from 'src/logic';
-import { buildNextMessage, type MessageFromServer } from 'src/messaging';
-import type { SceneDataId } from 'src/scenes';
+import type { ItemId, ItemState } from './items';
+import { handlePlayerAction, updateAllPlayerActions, type VisualActionSourceInClient } from './logic';
+import { buildNextMessage, type MessageFromServer } from './messaging';
+import type { SceneDataId } from './scenes';
 import {
   anySprites,
   enemySprites,
   getHeroPortrait,
+  getLandscape,
   getPortrait,
   getSlotImage,
   heroSpriteFromClass
-} from 'src/assets';
-import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from 'src/utils';
+} from './assets';
+import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from './utils';
+import { bus, imageBackgroundImg, putUnit, units1, yourSceneLabel, type EventDetail } from './main';
 
 type HeroSpecificEnemyState = { hName: HeroName; agg: number; sts: StatusState[] };
 
@@ -282,10 +284,10 @@ export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined)
     console.log('tried to sync with bad msg');
   }
   if (lastMsg) {
-    // console.log('sync wep wu to ' + lastMsg.yourInfo.inventory.weapon.warmup)
 
     visualLandscape = lastMsg.landscape;
-    visualSceneLabel = lastMsg.yourInfo.currentSceneDisplay;
+    visualSceneLabel = lastMsg.yourInfo.currentSceneDisplay
+    yourSceneLabel.textContent = lastMsg.yourInfo.currentSceneDisplay
 
     const newVups: VisualUnitProps[] = [];
     // console.log(`I am class ${lastMsg.yourInfo.class}`)
@@ -356,7 +358,6 @@ export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined)
       });
     }
     allVisualUnitProps = newVups;
-    // console.log(`${JSON.stringify(lastMsg.visualActionSources.map(v=>v.id))}`)
 
     for (const vas of lastMsg.visualActionSources) {
       syncConvoStateToVas(vas);
@@ -372,6 +373,12 @@ export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined)
     });
 
     visualActionSources = uiVases;
+    bus.dispatchEvent(new CustomEvent('ping', {
+      detail: { 
+        allVisualUnitProps: newVups,
+        uiVases: uiVases,
+      } satisfies EventDetail
+    }));
   }
 }
 
@@ -616,18 +623,18 @@ export async function nextAnimationIndex(start: boolean, someoneDied: boolean) {
 
 function checkAnimationValid(ba: BattleAnimation): boolean {
   const enemiesToCheck = enemies;
-  const alliesToCheck = allies;
+  const alliesToCheck = allies();
   const vasesToCheck = vasesToShow;
 
   const foundSource =
     enemiesToCheck().some((e) => e.actual.entity.unitId == ba.source) ||
-    alliesToCheck().some((a) => a.actual.entity.unitId == ba.source);
+    alliesToCheck.some((a) => a.actual.entity.unitId == ba.source);
   let foundTarget = false;
   // const cb = ba.behavior;
   if (ba.animateTo) {
     foundTarget =
       enemiesToCheck().some((e) => e.actual.entity.unitId == ba.animateTo) ||
-      alliesToCheck().some((a) => a.actual.entity.unitId == ba.animateTo) ||
+      alliesToCheck.some((a) => a.actual.entity.unitId == ba.animateTo) ||
       vasesToCheck().some((v) => v.id == ba.animateTo);
   } else {
     foundTarget = true;

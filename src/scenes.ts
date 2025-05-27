@@ -6,7 +6,7 @@ import {
 	type EnemyStatuses,
 	type EnemyTemplateId
 } from './enemies';
-import { equipItem, items, type ItemId } from 'src/items';
+import { equipItem, items, type ItemId } from './items';
 import type { EnemyForSpawning, VisualActionSource } from './logic';
 import type { HeroName, Flag, Player } from './users';
 
