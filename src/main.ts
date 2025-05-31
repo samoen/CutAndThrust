@@ -3,15 +3,17 @@ import bowman from './assets/units/bowman.png'
 import { addNewUser, users } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { allVisualUnitProps, convoStateForEachVAS, visualLandscape, worldReceived, type UIVas, type VisualUnitProps } from './ui'
-import { anySprites, getLandscape } from './assets'
+import { allVisualUnitProps, convoStateForEachVAS, selectedDetail, visualLandscape, worldReceived, type UIVas, type VisualUnitProps } from './ui'
+import { anySprites, getLandscape, getPortrait } from './assets'
 import type { UnitId, VisualActionSourceId } from './utils'
+import sidebar from './assets/ui/sidebar.png'
+import minimap from './assets/ui/minimap.png'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
 export const bus = new EventTarget();
-export let unitElements : {element:HTMLElement, unitId: UnitId}[] = []
-export let vasElements : {element:HTMLElement, vasId: VisualActionSourceId}[] = []
+export let unitElements: { element: HTMLElement, unitId: UnitId }[] = []
+export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId }[] = []
 
 
 document.body.style.backgroundColor = 'aliceblue'
@@ -67,7 +69,7 @@ imageBackground.appendChild(bgAndGrad)
 
 export let imageBackgroundImg = document.createElement('img')
 imageBackgroundImg.style.minWidth = '100vw'
-bus.addEventListener('ping',(event:Event)=>{
+bus.addEventListener('ping', (event: Event) => {
   imageBackgroundImg.src = getLandscape(visualLandscape)
 })
 bgAndGrad.appendChild(imageBackgroundImg)
@@ -92,12 +94,12 @@ let applyUnitsStyle = (units: HTMLDivElement) => {
 export let units1 = document.createElement('div')
 applyUnitsStyle(units1)
 visual.appendChild(units1)
-bus.addEventListener('ping',(event:Event)=>{
+bus.addEventListener('ping', (event: Event) => {
   const customEvent = event as CustomEvent<EventDetail>;
-  let msg : EventDetail = customEvent.detail
-  for(let vup of msg.allVisualUnitProps){
-    if(!unitElements.some(ue=>ue.unitId == vup.actual.entity.unitId)){
-      putUnit({vup:vup})
+  let msg: EventDetail = customEvent.detail
+  for (let vup of msg.allVisualUnitProps) {
+    if (!unitElements.some(ue => ue.unitId == vup.actual.entity.unitId)) {
+      putUnit({ vup: vup })
     }
   }
 })
@@ -142,7 +144,7 @@ function createUnitAndArea(arg: {}): { unitAndArea: HTMLElement, heroSprite: HTM
   heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
 
-  let guestAreaPlaceholder  = document.createElement('div')
+  let guestAreaPlaceholder = document.createElement('div')
   guestAreaPlaceholder.style.zIndex = '2'
   guestAreaPlaceholder.style.position = 'relative'
   guestAreaPlaceholder.style.border = '2px dashed transparent'
@@ -168,21 +170,21 @@ export function putUnit(arg: { vup: VisualUnitProps }) {
   }
   let listen = (event: Event) => {
     const customEvent = event as CustomEvent<EventDetail>;
-    let msg : EventDetail = customEvent.detail
+    let msg: EventDetail = customEvent.detail
     let vup = msg.allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.vup.actual.entity.unitId)
     console.log('unit event', vup)
     if (vup) {
       unitHolder.heroSprite.src = vup.sprite
       unitHolder.nameTag.textContent = vup.actual.entity.displayName
-    }else{
-      bus.removeEventListener('ping',listen)
+    } else {
+      bus.removeEventListener('ping', listen)
       unitHolder.unitAndArea.remove()
-      unitElements = unitElements.filter(ue=>ue.unitId != arg.vup.actual.entity.unitId)
+      unitElements = unitElements.filter(ue => ue.unitId != arg.vup.actual.entity.unitId)
     }
   }
   bus.addEventListener('ping', listen);
   units1.appendChild(unitHolder.unitAndArea)
-  unitElements.push({element:unitHolder.unitAndArea,unitId:arg.vup.actual.entity.unitId})
+  unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.actual.entity.unitId })
 }
 export function putVas(arg: { uiVas: UIVas }) {
   let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id })
@@ -206,22 +208,119 @@ let units2 = document.createElement('div')
 // units2.style.backgroundColor = 'red'
 applyUnitsStyle(units2)
 visual.appendChild(units2)
-bus.addEventListener('ping',(event:Event)=>{
+bus.addEventListener('ping', (event: Event) => {
   const customEvent = event as CustomEvent<EventDetail>;
-  let msg : EventDetail = customEvent.detail
+  let msg: EventDetail = customEvent.detail
   let uiVasesToShow = msg.uiVases.filter((s) => {
-     const csForE = convoStateForEachVAS.get(s.scene);
-     if (!csForE) return false;
-     const cs = csForE.get(s.id);
-     if (!cs) return false;
-     return !cs.isLocked;
-   });
-  for(let uiVas of uiVasesToShow){
-    if(!vasElements.some(ue=>ue.vasId == uiVas.id)){
-      putVas({uiVas:uiVas})
+    const csForE = convoStateForEachVAS.get(s.scene);
+    if (!csForE) return false;
+    const cs = csForE.get(s.id);
+    if (!cs) return false;
+    return !cs.isLocked;
+  });
+  for (let uiVas of uiVasesToShow) {
+    if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
+      putVas({ uiVas: uiVas })
     }
   }
 })
+
+let selectedDetails = document.createElement('div')
+selectedDetails.style.backgroundRepeat = 'no-repeat';
+selectedDetails.style.backgroundSize = 'calc(max(100%, 700px)) 100%';
+selectedDetails.style.backgroundPosition = 'left top';
+selectedDetails.style.display = 'flex';
+selectedDetails.style.position = 'relative';
+selectedDetails.style.height = '30svh';
+selectedDetails.style.backgroundImage = `url(${sidebar})`
+document.body.appendChild(selectedDetails)
+
+let selectedPortrait = document.createElement('div')
+selectedPortrait.style.backgroundImage = `url(${minimap})`
+selectedPortrait.style.backgroundRepeat = 'no-repeat';
+selectedPortrait.style.backgroundSize = '100% 100%';
+selectedPortrait.style.minWidth = '100px';
+selectedPortrait.style.flexBasis = '15%';
+selectedPortrait.style.display = 'flex';
+selectedPortrait.style.flexDirection = 'column';
+selectedPortrait.style.height = '100%';
+selectedPortrait.style.justifyContent = 'flex-start';
+selectedPortrait.style.overflow = 'hidden';
+selectedDetails.appendChild(selectedPortrait)
+
+let portrait = document.createElement('div')
+portrait.style.flexShrink = '1';
+portrait.style.flexGrow = '1';
+portrait.style.overflow = 'hidden';
+portrait.style.display = 'block';
+portrait.style.height = '10svh';
+portrait.style.paddingTop = '4px';
+portrait.style.paddingInline = '4px';
+selectedPortrait.appendChild(portrait)
+
+let portraitImg = document.createElement('img')
+portraitImg.style.display = 'block';
+portraitImg.style.height = '100%';
+portraitImg.style.width = '100%';
+portraitImg.style.objectFit = 'cover';
+portraitImg.src = getPortrait('general')
+portrait.appendChild(portraitImg)
+
+let underPortrait = document.createElement('div')
+underPortrait.textContent = 'selected guy'
+underPortrait.style.textAlign = 'center';
+underPortrait.style.whiteSpace = 'nowrap';
+underPortrait.style.display = 'flex';
+underPortrait.style.justifyContent = 'center';
+underPortrait.style.alignItems = 'center';
+underPortrait.style.height = '4svh';
+underPortrait.style.zIndex = '2';
+underPortrait.style.color = 'white';
+underPortrait.style.borderTop = 'none';
+underPortrait.style.wordWrap = 'break-word';
+selectedPortrait.appendChild(underPortrait)
+
+let selectedRest = document.createElement('div')
+selectedRest.style.flexBasis = '85%';
+selectedRest.style.height = '100%';
+selectedRest.style.padding = '10px';
+selectedDetails.appendChild(selectedRest)
+
+let vasdPromptAndButtons = document.createElement('div')
+vasdPromptAndButtons.style.display = 'flex';
+vasdPromptAndButtons.style.height = '100%';
+vasdPromptAndButtons.style.flexDirection = 'column';
+vasdPromptAndButtons.style.color = 'white';
+vasdPromptAndButtons.style.overflowY = 'auto';
+vasdPromptAndButtons.style.borderLeft = 'none';
+selectedRest.appendChild(vasdPromptAndButtons)
+
+let vasdPrompt = document.createElement('div')
+vasdPrompt.style.whiteSpace = 'pre-wrap';
+vasdPrompt.style.lineHeight = '17px';
+vasdPrompt.textContent = 'a retort'
+vasdPromptAndButtons.appendChild(vasdPrompt)
+
+let vasdButtons = document.createElement('div')
+vasdButtons.style.marginTop = '7px';
+vasdButtons.style.display = 'flex';
+vasdButtons.style.flexWrap = 'wrap';
+vasdButtons.style.gap = '5px';
+vasdPromptAndButtons.appendChild(vasdButtons)
+
+let vasResponses = ['cool', 'yes']
+for (let vr of vasResponses) {
+  let vasResponse = document.createElement('button')
+  vasResponse.style.paddingInline = '0.7em';
+  vasResponse.style.paddingBlock = '0.6em';
+  vasResponse.style.border = 'none';
+  vasResponse.style.borderRadius = '1px';
+  vasResponse.style.color = 'white';
+  vasResponse.style.backgroundColor = 'brown';
+  vasResponse.textContent = vr
+  vasdButtons.appendChild(vasResponse)
+}
+
 
 let added = addNewUser("cood")
 if (added) {

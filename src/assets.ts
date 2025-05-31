@@ -89,6 +89,7 @@ import ankhNecklace from './assets/scenery/ankh-necklace.png';
 import magicStaffSlot from './assets/equipment/staff-magic-slot.png';
 import daggerSlot from './assets/equipment/dagger-human.png';
 import bowSlot from './assets/equipment/bow-short.png';
+
 import type { EnemyTemplateId } from './enemies';
 import type { Item, ItemId, ItemState } from './items';
 import type { PlayerInClient } from './users';
