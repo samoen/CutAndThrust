@@ -663,7 +663,8 @@ export async function choose(
   handlePlayerAction(player, actionFromId);
   updateAllPlayerActions()
   let msg = buildNextMessage(player, player.unitId)
-  worldReceived(msg)
+  // worldReceived(msg)
+  syncVisualsToMsg(msg)
 
   clientState.status = 'playing';
   clientState.waitingForMyEvent = false;
