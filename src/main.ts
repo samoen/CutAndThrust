@@ -3,7 +3,7 @@ import bowman from './assets/units/bowman.png'
 import { addNewUser, users } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { allVisualUnitProps, choose, convoStateForEachVAS, lastMsgFromServer, selectedDetail, syncVisualsToMsg, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
+import { allVisualUnitProps, choose, convoStateForEachVAS, lastMsgFromServer, selectedDetail, syncVisualsToMsg, typedInventory, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
 import { anySprites, getHeroPortrait, getLandscape, getPortrait } from './assets'
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
@@ -14,7 +14,7 @@ document.querySelector<HTMLDivElement>('#loading')!.remove()
 export const bus = new EventTarget();
 
 export let unitElements: { element: HTMLElement, unitId: UnitId }[] = []
-export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId, convoState: ConvoState }[] = []
+export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId, convoState?: ConvoState }[] = []
 
 
 document.body.style.backgroundColor = 'aliceblue'
@@ -110,6 +110,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   unitAndArea.style.display = 'flex'
   unitAndArea.style.flexDirection = 'row'
 
+
   let homePlaceholder = document.createElement('div')
   // homePlaceholder.style.order = '1'
   homePlaceholder.style.border = '2px dashed transparent'
@@ -144,6 +145,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   heroSprite.style.aspectRatio = '1/1'
   heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
+  heroSprite.draggable = false
 
   let guestAreaPlaceholder = document.createElement('div')
   guestAreaPlaceholder.style.zIndex = '2'
@@ -186,6 +188,7 @@ export function putUnit(arg: { vup: VisualUnitProps }) {
   unitHolder.nameTag.textContent = arg.vup.actual.entity.displayName
   if (arg.vup.actual.kind == 'enemy') {
     unitHolder.heroSprite.style.transform = 'scaleX(-1)'
+    unitHolder.homePlaceholder.style.order = '1'
   }
   let updateOrRemoveUnit = (event: Event) => {
     // const customEvent = event as CustomEvent<EventDetail>;
@@ -205,7 +208,7 @@ export function putUnit(arg: { vup: VisualUnitProps }) {
   if (arg.vup.actual.kind == 'enemy') {
     units2.appendChild(unitHolder.unitAndArea)
   }
-  if(arg.vup.actual.kind == 'player'){
+  if (arg.vup.actual.kind == 'player') {
     units1.appendChild(unitHolder.unitAndArea)
   }
   unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.actual.entity.unitId })
@@ -222,13 +225,15 @@ export function putVas(arg: { uiVas: UIVas }) {
   unitHolder.nameTag.textContent = arg.uiVas.displayName
   unitHolder.homePlaceholder.style.order = '1'
   units2.appendChild(unitHolder.unitAndArea)
+  vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id })
   let updateOrRemoveVas = (event: Event) => {
     // const customEvent = event as CustomEvent<EventDetail>;
     // let msg: EventDetail = customEvent.detail
+    // console.log('update')
     let vas = visualActionSources.find(vas => vas.id == arg.uiVas.id)
-    // console.log('unit event', vup)
+    console.log('vas sync', vas)
     if (vas) {
-      unitHolder.heroSprite.src = vas.sprite
+      unitHolder.heroSprite.src = anySprites[vas.sprite]
       unitHolder.nameTag.textContent = vas.displayName
     } else {
       bus.removeEventListener('ping', updateOrRemoveVas)
@@ -263,6 +268,7 @@ bus.addEventListener('ping', (event: Event) => {
   //   if (!cs) return false;
   //   return !cs.isLocked;
   // });
+  console.log('vases after ping', visualActionSources)
   let uiVasesToShow = visualActionSources
   for (let uiVas of uiVasesToShow) {
     if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
@@ -310,24 +316,24 @@ portraitImg.style.height = '100%';
 portraitImg.style.width = '100%';
 portraitImg.style.objectFit = 'cover';
 portrait.appendChild(portraitImg)
-bus.addEventListener('visual-thing-selected',(event:Event)=>{
+bus.addEventListener('visual-thing-selected', (event: Event) => {
   const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
   let msg: VisualThingSelectedEvent = customEvent.detail
-  let vas =  visualActionSources.find(vas=>vas.id == msg.unitId)
-  if(vas){
+  let vas = visualActionSources.find(vas => vas.id == msg.unitId)
+  if (vas) {
     underPortrait.textContent = vas.displayName
-    if(vas.portrait){
+    if (vas.portrait) {
       portraitImg.src = getPortrait(vas.portrait)
       return
     }
-    portraitImg.src =  anySprites[vas.sprite]
+    portraitImg.src = anySprites[vas.sprite]
     return
   }
-  let vup = allVisualUnitProps.find(vup=>vup.actual.entity.unitId == msg.unitId)
-  if(vup){
+  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == msg.unitId)
+  if (vup) {
     portraitImg.src = vup.portrait
     underPortrait.textContent = vup.actual.entity.displayName
-  } 
+  }
 })
 
 let underPortrait = document.createElement('div')
@@ -375,27 +381,73 @@ bus.addEventListener('visual-thing-selected', (event: Event) => {
   const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
   let msg: VisualThingSelectedEvent = customEvent.detail
   vasdButtons.replaceChildren()
-  let vas = visualActionSources.find(vas=>vas.id == msg.unitId)
-  console.log("populate vas actions", vas)
-  if(!vas)return
-   for (let gastc of vas.actionsInClient) {
-     let vasActionButton = document.createElement('button')
-     vasActionButton.style.paddingInline = '0.7em';
-     vasActionButton.style.paddingBlock = '0.6em';
-     vasActionButton.style.border = 'none';
-     vasActionButton.style.borderRadius = '1px';
-     vasActionButton.style.color = 'white';
-     vasActionButton.style.backgroundColor = 'brown';
-     vasActionButton.textContent = gastc.buttonText
-     vasActionButton.addEventListener('click',()=>{
-      choose(gastc)
-     })
-     vasdButtons.appendChild(vasActionButton)
-     
-   }
+  let vas = visualActionSources.find(vas => vas.id == msg.unitId)
+  // console.log("populate vas actions", vas)
+  function putActionButton() {
+
+  }
+  if (vas) {
+    for (let gastc of vas.actionsInClient) {
+      let vasActionButton = document.createElement('button')
+      vasActionButton.style.paddingInline = '0.7em';
+      vasActionButton.style.paddingBlock = '0.6em';
+      vasActionButton.style.border = 'none';
+      vasActionButton.style.borderRadius = '1px';
+      vasActionButton.style.color = 'white';
+      vasActionButton.style.backgroundColor = 'brown';
+      vasActionButton.textContent = gastc.buttonText
+      vasActionButton.addEventListener('click', () => {
+        choose(gastc)
+      })
+      vasdButtons.appendChild(vasActionButton)
+    }
+    return
+  }
+  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == msg.unitId)
+  if (vup) {
+    for (let value of typedInventory()) {
+      // for (let gastc of vup.actionsThatCanTargetMe) {
+      let slotButton = document.createElement('button')
+      slotButton.style.position = 'relative';
+      slotButton.style.border = 'none';
+      slotButton.style.background = 'none';
+      slotButton.style.cursor = 'pointer';
+      if(value.disabled){
+        // slotButton.disabled = true
+      }
+
+      slotButton.addEventListener('click',()=>{
+        console.log('clicked clot button', value)
+        if( value.acts.length == 1){
+          let act = value.acts.at(0)
+          if(act){
+            console.log('choosing only option')
+            choose(act)
+            return
+          }
+        }
+        let gastc = vup.actionsThatCanTargetMe.find(a=>a.itemId == value.itemState.stats.id)
+        if(gastc){
+          console.log('choosing', gastc.buttonText)
+          choose(gastc)
+          return
+        }
+      })
+      vasdButtons.appendChild(slotButton)
+      let slotImg = document.createElement('img')
+      slotImg.src = value.img
+      slotImg.style.display = 'block';
+      slotImg.style.borderRadius = '10px';
+      if(value.disabled){
+        slotImg.style.opacity = '0.5'
+      }
+      slotButton.appendChild(slotImg)
+    }
+  }
+
 })
 
-let added = addNewUser("heroName")
+let added = addNewUser("my name")
 if (added) {
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)

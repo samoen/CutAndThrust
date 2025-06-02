@@ -29,7 +29,7 @@ export function addNewUser(heroName: string): { id: string; player: Player } | u
 	// startflags.add('killedGoblins')
 
 	let startSceneId: SceneDataId = startSceneDataId;
-	// startSceneId = 'soloTrain3'
+	startSceneId = 'soloTrain1'
 	// startSceneId = 'throne'
 	// startSceneId = 'armory'
 
@@ -74,8 +74,8 @@ export function addNewUser(heroName: string): { id: string; player: Player } | u
 		.forEach((i) => {
 			equipItem(player, i.id);
 		});
-		// equipItem(player,'thiefCloak')
-		// equipItem(player,'fireStaff')
+		equipItem(player,'bow')
+		equipItem(player,'potion')
 		// equipItem(player,'poisonDart')
 
 	const userId = "me";

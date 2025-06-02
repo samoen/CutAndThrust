@@ -146,6 +146,7 @@ export type SlotButtonProps = {
 
 export const typedInventory =
   () => {
+    console.log('inv',lastMsgFromServer?.yourInfo.inventory)
     const inventory: SlotButtonProps[] = [];
     if (!lastMsgFromServer) {
       return inventory;
@@ -275,6 +276,7 @@ export function updateUnit(index: UnitId, run: (vup: VisualUnitProps) => void) {
 }
 
 export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined) {
+  console.log('syncing to msg ', lastMsgFromServ)
   // do this here for some reason
   waitingForMyAnimation = false
   currentAnimationIndex = 999
@@ -664,6 +666,7 @@ export async function choose(
   updateAllPlayerActions()
   let msg = buildNextMessage(player, player.unitId)
   // worldReceived(msg)
+  lastMsgFromServer = msg
   syncVisualsToMsg(msg)
 
   clientState.status = 'playing';
