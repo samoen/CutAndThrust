@@ -74,6 +74,9 @@ export let visualLandscape: LandscapeImage = 'plains';
 export let visualOpacity = false;
 export let visualSceneLabel = 'nowhere';
 export const successcreds: SignupResponse | undefined = undefined;
+export const uiStateYep = {
+  lastUnitClicked: undefined as UnitId | undefined
+}
 
 
 export const allies = () => {
@@ -153,7 +156,7 @@ export const typedInventory =
     }
     for (const state of lastMsgFromServer.yourInfo.inventory) {
       const acts = actionsForSlot(lastMsgFromServer, state.stats.id);
-      const d = !acts.length || waitingForMyAnimation || clientState.waitingForMyEvent;
+      const d = !acts.length
       const num = numberShownOnSlot(state);
       let include = true;
       if (state.stats.excludeFromDetail && !acts.length) {
@@ -651,14 +654,16 @@ export async function choose(
   clientState.waitingForMyEvent = true;
   clientState.status = 'submitting action';
 
-  let toChoose: GameActionSelected = { buttonText: chosen.buttonText }
-
   const player = users.get("me");
-  if (!player) return
+  if (!player) {
+    console.log('no player when choose')
+    return
+  }
   const actionFromId = [...player.devActions, ...player.itemActions, ...player.vasActions].find(
     (g) => g.buttonText == chosen.buttonText
   );
   if (!actionFromId) {
+    console.log('chosen action not valid')
     return
   }
   player.animations = [];

@@ -3,7 +3,7 @@ import bowman from './assets/units/bowman.png'
 import { addNewUser, users } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { allVisualUnitProps, choose, convoStateForEachVAS, lastMsgFromServer, selectedDetail, syncVisualsToMsg, typedInventory, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
+import { allVisualUnitProps, choose, convoStateForEachVAS, lastMsgFromServer, lastUnitClicked, selectedDetail, syncVisualsToMsg, typedInventory, uiStateYep, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
 import { anySprites, getHeroPortrait, getLandscape, getPortrait } from './assets'
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
@@ -377,15 +377,10 @@ vasdButtons.style.flexWrap = 'wrap';
 vasdButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasdButtons)
 
-bus.addEventListener('visual-thing-selected', (event: Event) => {
-  const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
-  let msg: VisualThingSelectedEvent = customEvent.detail
+function refreshActionButtons(arg:{unitId: UnitId}){
   vasdButtons.replaceChildren()
-  let vas = visualActionSources.find(vas => vas.id == msg.unitId)
+  let vas = visualActionSources.find(vas => vas.id == arg.unitId)
   // console.log("populate vas actions", vas)
-  function putActionButton() {
-
-  }
   if (vas) {
     for (let gastc of vas.actionsInClient) {
       let vasActionButton = document.createElement('button')
@@ -403,7 +398,7 @@ bus.addEventListener('visual-thing-selected', (event: Event) => {
     }
     return
   }
-  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == msg.unitId)
+  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.unitId)
   if (vup) {
     for (let value of typedInventory()) {
       // for (let gastc of vup.actionsThatCanTargetMe) {
@@ -417,7 +412,6 @@ bus.addEventListener('visual-thing-selected', (event: Event) => {
       }
 
       slotButton.addEventListener('click',()=>{
-        console.log('clicked clot button', value)
         if( value.acts.length == 1){
           let act = value.acts.at(0)
           if(act){
@@ -438,13 +432,26 @@ bus.addEventListener('visual-thing-selected', (event: Event) => {
       slotImg.src = value.img
       slotImg.style.display = 'block';
       slotImg.style.borderRadius = '10px';
+      console.log('refreshing slot', value)
       if(value.disabled){
         slotImg.style.opacity = '0.5'
       }
       slotButton.appendChild(slotImg)
     }
   }
+}
 
+bus.addEventListener('ping',()=>{
+  if(uiStateYep.lastUnitClicked){
+    refreshActionButtons({unitId:uiStateYep.lastUnitClicked})
+  }
+})
+
+bus.addEventListener('visual-thing-selected', (event: Event) => {
+  const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
+  let msg: VisualThingSelectedEvent = customEvent.detail
+  uiStateYep.lastUnitClicked = msg.unitId
+  refreshActionButtons({unitId: msg.unitId})
 })
 
 let added = addNewUser("my name")

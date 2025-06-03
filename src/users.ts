@@ -166,11 +166,7 @@ export function healEntity(bee: BattleEventEntity, amount: number): { healed: nu
 }
 
 export function activePlayers(): Player[] {
-	return Array.from(users.values()).filter((usr) => {
-		return (
-			usr.connectionState.con && usr.connectionState.stream && usr.connectionState.stream.locked
-		);
-	});
+	return Array.from(users.values())
 }
 
 export function activePlayersInScene(scene: UniqueSceneIdenfitier) {
