@@ -3,7 +3,7 @@ import bowman from './assets/units/bowman.png'
 import { addNewUser, users } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { allVisualUnitProps, choose, convoStateForEachVAS, lastMsgFromServer, lastUnitClicked, selectedDetail, syncVisualsToMsg, typedInventory, uiStateYep, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
+import { allVisualUnitProps, choose, chooseVasResponse, convoStateForEachVAS, lastMsgFromServer, resetSceneConvos, selectedDetail, selectedVasResponsesToShow, selectedVisualActionSourceState, syncVisualsToMsg, typedInventory, uiStateYep, vasesToShow, visualActionSources, visualLandscape, worldReceived, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
 import { anySprites, getHeroPortrait, getLandscape, getPortrait } from './assets'
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
@@ -13,8 +13,15 @@ document.querySelector<HTMLDivElement>('#loading')!.remove()
 
 export const bus = new EventTarget();
 
+export type UIEvent = {
+  kind:'visual-thing-selected'
+  unitId:UnitId
+} | {
+  kind: 'scene-reset' | 'ping'
+}
+
 export let unitElements: { element: HTMLElement, unitId: UnitId }[] = []
-export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId, convoState?: ConvoState }[] = []
+export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId }[] = []
 
 
 document.body.style.backgroundColor = 'aliceblue'
@@ -69,6 +76,7 @@ bgAndGrad.style.position = 'relative'
 imageBackground.appendChild(bgAndGrad)
 
 export let imageBackgroundImg = document.createElement('img')
+imageBackgroundImg.draggable = false
 imageBackgroundImg.style.minWidth = '100vw'
 bus.addEventListener('ping', (event: Event) => {
   imageBackgroundImg.src = getLandscape(visualLandscape)
@@ -105,7 +113,7 @@ bus.addEventListener('ping', (event: Event) => {
   }
 })
 
-function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement } {
+function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: ()=>void } {
   let unitAndArea = document.createElement('div')
   unitAndArea.style.display = 'flex'
   unitAndArea.style.flexDirection = 'row'
@@ -143,7 +151,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   heroSprite.style.display = 'block'
   heroSprite.style.width = '100%'
   heroSprite.style.aspectRatio = '1/1'
-  heroSprite.src = bowman
+  // heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
   heroSprite.draggable = false
 
@@ -154,20 +162,40 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   guestAreaPlaceholder.style.borderRadius = '10px'
   guestAreaPlaceholder.style.width = '50%'
   guestAreaPlaceholder.style.height = 'auto'
-  guestAreaPlaceholder.style.backgroundColor = 'red'
+  // guestAreaPlaceholder.style.backgroundColor = 'red'
   unitAndArea.appendChild(guestAreaPlaceholder)
 
-  bus.addEventListener('visual-thing-selected', (event: Event) => {
+  const refresh = (event: Event) => {
     const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
     let msg: VisualThingSelectedEvent = customEvent.detail
-    if (msg.unitId == arg.unitId) {
+    setShadow({unitId: msg.unitId})
+  }
+  const setShadow = (arg2:{unitId:UnitId})=>{
+    if (arg2.unitId == arg.unitId) {
       homePlaceholder.style.boxShadow = '0 0 20px rgb(0, 0, 0, 0.4)';
     } else {
       homePlaceholder.style.boxShadow = 'none'
     }
-  })
+  }
+  // const selectBecauseImFallback = ()=>{
+  //   let d = selectedDetail()
+  //   if(!d)return
+  //   if(d.kind == 'bg')return
+  //   if(d.kind == 'vas'){
+  //     setShadow({unitId:d.entity.id})
+  //     return
+  //   }
+  //   setShadow({unitId:d.entity.actual.entity.unitId})
+  // }
+  bus.addEventListener('visual-thing-selected', refresh)
+  // bus.addEventListener('scene-reset', selectBecauseImFallback)
+  const onRemove = ()=>{
+    bus.removeEventListener('visual-thing-selected',refresh)
+    // bus.removeEventListener('scene-reset',selectBecauseImFallback)
+  }
 
   homePlaceholder.addEventListener('click', () => {
+    uiStateYep.lastUnitClicked = arg.unitId
     bus.dispatchEvent(new CustomEvent('visual-thing-selected', {
       detail: {
         unitId: arg.unitId
@@ -175,9 +203,9 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     }))
   })
 
-
-  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder }
+  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove }
 }
+
 export type EventDetail = {
   allVisualUnitProps: VisualUnitProps[]
   uiVases: UIVas[]
@@ -201,6 +229,7 @@ export function putUnit(arg: { vup: VisualUnitProps }) {
     } else {
       bus.removeEventListener('ping', updateOrRemoveUnit)
       unitHolder.unitAndArea.remove()
+      unitHolder.onRemove()
       unitElements = unitElements.filter(ue => ue.unitId != arg.vup.actual.entity.unitId)
     }
   }
@@ -213,6 +242,7 @@ export function putUnit(arg: { vup: VisualUnitProps }) {
   }
   unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.actual.entity.unitId })
 }
+
 export type VisualThingSelectedEvent = {
   // vasId?:VisualActionSourceId
   unitId: UnitId
@@ -230,18 +260,23 @@ export function putVas(arg: { uiVas: UIVas }) {
     // const customEvent = event as CustomEvent<EventDetail>;
     // let msg: EventDetail = customEvent.detail
     // console.log('update')
-    let vas = visualActionSources.find(vas => vas.id == arg.uiVas.id)
+    let vas = vasesToShow().find(vas => vas.id == arg.uiVas.id)
     console.log('vas sync', vas)
     if (vas) {
       unitHolder.heroSprite.src = anySprites[vas.sprite]
       unitHolder.nameTag.textContent = vas.displayName
     } else {
       bus.removeEventListener('ping', updateOrRemoveVas)
+      bus.removeEventListener('response-chosen', updateOrRemoveVas)
+      bus.removeEventListener('scene-reset', updateOrRemoveVas)
+      unitHolder.onRemove()
       unitHolder.unitAndArea.remove()
       vasElements = vasElements.filter(ve => ve.vasId != arg.uiVas.id)
     }
   }
   bus.addEventListener('ping', updateOrRemoveVas);
+  bus.addEventListener('response-chosen', updateOrRemoveVas)
+  bus.addEventListener('scene-reset', updateOrRemoveVas)
 }
 
 let centerPlaceHolder = document.createElement('div')
@@ -250,31 +285,25 @@ centerPlaceHolder.style.width = 'clamp(25px, 5vw + 1px, 50px)'
 centerPlaceHolder.style.position = 'absolute'
 centerPlaceHolder.style.top = '50%'
 centerPlaceHolder.style.left = '50%'
-centerPlaceHolder.style.backgroundColor = 'blue'
+// centerPlaceHolder.style.backgroundColor = 'blue'
 visual.appendChild(centerPlaceHolder)
 
 let units2 = document.createElement('div')
 // units2.style.backgroundColor = 'red'
 applyUnitsStyle(units2)
 visual.appendChild(units2)
-bus.addEventListener('ping', (event: Event) => {
-  // units2.replaceChildren()
-  // const customEvent = event as CustomEvent<EventDetail>;
-  // let msg: EventDetail = customEvent.detail
-  // let uiVasesToShow = visualActionSources.filter((s) => {
-  //   const csForE = convoStateForEachVAS.get(s.scene);
-  //   if (!csForE) return false;
-  //   const cs = csForE.get(s.id);
-  //   if (!cs) return false;
-  //   return !cs.isLocked;
-  // });
-  console.log('vases after ping', visualActionSources)
-  let uiVasesToShow = visualActionSources
-  for (let uiVas of uiVasesToShow) {
+function putMissingVases(){
+  for (let uiVas of vasesToShow()) {
     if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
       putVas({ uiVas: uiVas })
     }
   }
+}
+bus.addEventListener('ping', (event: Event) => {
+  putMissingVases()
+})
+bus.addEventListener('response-chosen', (event: Event) => {
+  putMissingVases()
 })
 
 let selectedDetails = document.createElement('div')
@@ -308,9 +337,28 @@ portrait.style.display = 'block';
 portrait.style.height = '10svh';
 portrait.style.paddingTop = '4px';
 portrait.style.paddingInline = '4px';
+portrait.addEventListener('click', () => {
+  let selDetail = selectedDetail()
+  if (!(selDetail && selDetail.kind == 'vas')) {
+    return;
+  }
+  resetSceneConvos(selDetail.entity.scene);
+  bus.dispatchEvent(new CustomEvent('scene-reset'))
+
+  let sd = selectedDetail()
+  if(sd?.kind == 'vas'){
+    uiStateYep.lastUnitClicked = sd.entity.id
+    bus.dispatchEvent(new CustomEvent('visual-thing-selected', {
+      detail: {
+        unitId: sd.entity.id
+      }
+    }))
+  }
+})
 selectedPortrait.appendChild(portrait)
 
 let portraitImg = document.createElement('img')
+portraitImg.draggable = false
 portraitImg.style.display = 'block';
 portraitImg.style.height = '100%';
 portraitImg.style.width = '100%';
@@ -367,8 +415,20 @@ selectedRest.appendChild(vasdPromptAndButtons)
 let vasdPrompt = document.createElement('div')
 vasdPrompt.style.whiteSpace = 'pre-wrap';
 vasdPrompt.style.lineHeight = '17px';
-vasdPrompt.textContent = 'a retort'
-vasdPromptAndButtons.appendChild(vasdPrompt)
+function refreshPrompt() {
+  vasdPrompt.remove()
+  let vasState = selectedVisualActionSourceState()
+  console.log('refreshing prompt with', vasState)
+  if (!vasState) return
+  vasdPrompt.textContent = vasState.currentRetort
+  vasdPromptAndButtons.insertAdjacentElement('afterbegin',vasdPrompt)
+}
+bus.addEventListener('visual-thing-selected', (event: Event) => {
+  refreshPrompt()
+})
+bus.addEventListener('response-chosen', (event: Event) => {
+  refreshPrompt()
+})
 
 let vasdButtons = document.createElement('div')
 vasdButtons.style.marginTop = '7px';
@@ -377,7 +437,7 @@ vasdButtons.style.flexWrap = 'wrap';
 vasdButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasdButtons)
 
-function refreshActionButtons(arg:{unitId: UnitId}){
+function refreshActionButtons(arg: { unitId: UnitId }) {
   vasdButtons.replaceChildren()
   let vas = visualActionSources.find(vas => vas.id == arg.unitId)
   // console.log("populate vas actions", vas)
@@ -396,6 +456,21 @@ function refreshActionButtons(arg:{unitId: UnitId}){
       })
       vasdButtons.appendChild(vasActionButton)
     }
+    for (let convoResponse of selectedVasResponsesToShow()) {
+      let vasActionButton = document.createElement('button')
+      vasActionButton.style.paddingInline = '0.7em';
+      vasActionButton.style.paddingBlock = '0.6em';
+      vasActionButton.style.border = 'none';
+      vasActionButton.style.borderRadius = '1px';
+      vasActionButton.style.color = 'white';
+      vasActionButton.style.backgroundColor = 'brown';
+      vasActionButton.textContent = convoResponse.responseText
+      vasActionButton.addEventListener('click', () => {
+        chooseVasResponse(convoResponse)
+        bus.dispatchEvent(new CustomEvent('response-chosen'))
+      })
+      vasdButtons.appendChild(vasActionButton)
+    }
     return
   }
   let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.unitId)
@@ -407,21 +482,21 @@ function refreshActionButtons(arg:{unitId: UnitId}){
       slotButton.style.border = 'none';
       slotButton.style.background = 'none';
       slotButton.style.cursor = 'pointer';
-      if(value.disabled){
+      if (value.disabled) {
         // slotButton.disabled = true
       }
 
-      slotButton.addEventListener('click',()=>{
-        if( value.acts.length == 1){
+      slotButton.addEventListener('click', () => {
+        if (value.acts.length == 1) {
           let act = value.acts.at(0)
-          if(act){
+          if (act) {
             console.log('choosing only option')
             choose(act)
             return
           }
         }
-        let gastc = vup.actionsThatCanTargetMe.find(a=>a.itemId == value.itemState.stats.id)
-        if(gastc){
+        let gastc = vup.actionsThatCanTargetMe.find(a => a.itemId == value.itemState.stats.id)
+        if (gastc) {
           console.log('choosing', gastc.buttonText)
           choose(gastc)
           return
@@ -429,11 +504,12 @@ function refreshActionButtons(arg:{unitId: UnitId}){
       })
       vasdButtons.appendChild(slotButton)
       let slotImg = document.createElement('img')
+      slotImg.draggable = false
       slotImg.src = value.img
       slotImg.style.display = 'block';
       slotImg.style.borderRadius = '10px';
       console.log('refreshing slot', value)
-      if(value.disabled){
+      if (value.disabled) {
         slotImg.style.opacity = '0.5'
       }
       slotButton.appendChild(slotImg)
@@ -441,17 +517,26 @@ function refreshActionButtons(arg:{unitId: UnitId}){
   }
 }
 
-bus.addEventListener('ping',()=>{
-  if(uiStateYep.lastUnitClicked){
-    refreshActionButtons({unitId:uiStateYep.lastUnitClicked})
+bus.addEventListener('ping', () => {
+  if (uiStateYep.lastUnitClicked && uiStateYep.lastUnitClicked != 'background') {
+    refreshActionButtons({ unitId: uiStateYep.lastUnitClicked })
   }
 })
 
 bus.addEventListener('visual-thing-selected', (event: Event) => {
   const customEvent = event as CustomEvent<VisualThingSelectedEvent>;
   let msg: VisualThingSelectedEvent = customEvent.detail
-  uiStateYep.lastUnitClicked = msg.unitId
-  refreshActionButtons({unitId: msg.unitId})
+  refreshActionButtons({ unitId: msg.unitId })
+})
+bus.addEventListener('response-chosen', (event: Event) => {
+  if (uiStateYep.lastUnitClicked && uiStateYep.lastUnitClicked != 'background') {
+    refreshActionButtons({ unitId: uiStateYep.lastUnitClicked })
+  }
+})
+bus.addEventListener('scene-reset', (event: Event) => {
+  if (uiStateYep.lastUnitClicked && uiStateYep.lastUnitClicked != 'background') {
+    refreshActionButtons({ unitId: uiStateYep.lastUnitClicked })
+  }
 })
 
 let added = addNewUser("my name")

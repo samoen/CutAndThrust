@@ -1,7 +1,7 @@
 import { users, type Flag, type HeroName, type PlayerInClient } from './users';
 
 import type { ItemId, ItemState } from './items';
-import { handlePlayerAction, updateAllPlayerActions, type VisualActionSourceInClient } from './logic';
+import { handlePlayerAction, updateAllPlayerActions, type ConversationResponse, type VisualActionSourceInClient } from './logic';
 import { buildNextMessage, type MessageFromServer } from './messaging';
 import type { SceneDataId } from './scenes';
 import {
@@ -69,13 +69,12 @@ export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
 export const latestSlotButtonInput: ItemId | undefined = undefined;
-export const lastUnitClicked: UnitId | 'background' | undefined = undefined;
 export let visualLandscape: LandscapeImage = 'plains';
 export let visualOpacity = false;
 export let visualSceneLabel = 'nowhere';
 export const successcreds: SignupResponse | undefined = undefined;
 export const uiStateYep = {
-  lastUnitClicked: undefined as UnitId | undefined
+  lastUnitClicked: undefined as UnitId | undefined | 'background'
 }
 
 
@@ -89,6 +88,7 @@ export const enemies = () => {
 };
 
 export const vasesToShow = () => {
+  // return visualActionSources
   return visualActionSources.filter((s) => {
     const csForE = convoStateForEachVAS.get(s.scene);
     if (!csForE) return false;
@@ -149,7 +149,6 @@ export type SlotButtonProps = {
 
 export const typedInventory =
   () => {
-    console.log('inv',lastMsgFromServer?.yourInfo.inventory)
     const inventory: SlotButtonProps[] = [];
     if (!lastMsgFromServer) {
       return inventory;
@@ -184,14 +183,14 @@ export type DetailWindow =
   | { kind: 'bg' };
 
 export const selectedDetail: () => DetailWindow | undefined = () => {
-  if (lastUnitClicked == 'background') {
+  if (uiStateYep.lastUnitClicked == 'background') {
     return { kind: 'bg' } satisfies DetailWindow;
   }
 
-  const vupAt = allVisualUnitProps.find((v) => v.actual.entity.unitId == lastUnitClicked);
+  const vupAt = allVisualUnitProps.find((v) => v.actual.entity.unitId == uiStateYep.lastUnitClicked);
   if (vupAt) return { kind: 'vup', entity: vupAt } satisfies DetailWindow;
 
-  const vasAt = vasesToShow().find((v) => v.id == lastUnitClicked);
+  const vasAt = vasesToShow().find((v) => v.id == uiStateYep.lastUnitClicked);
   if (vasAt) return { kind: 'vas', entity: vasAt } satisfies DetailWindow;
 
   // if last unit clicked not valid, fall back to first enemy
@@ -229,6 +228,42 @@ export const selectedDetail: () => DetailWindow | undefined = () => {
   return undefined;
 }
 
+export function chooseVasResponse(c: ConversationResponse) {
+  let state = selectedVisualActionSourceState();
+  if (!state) return;
+  if (c.lock) {
+    for (const handleToLock of c.lock) {
+      state.lockedResponseHandles.set(handleToLock, true);
+    }
+  }
+  if (c.unlock) {
+    for (const handleToUnlock of c.unlock) {
+      state.lockedResponseHandles.set(handleToUnlock, false);
+    }
+  }
+  if (c.responseId) {
+    state.lockedResponseHandles.set(c.responseId, true);
+  }
+  if (c.unlockVas) {
+    for (const handleToUnlock of c.unlockVas) {
+      // let csToUnlock = $convoStateForEachVAS.get(handleToUnlock);
+      // if (csToUnlock) {
+      changeVasLocked(handleToUnlock, true);
+      // }
+    }
+  }
+  if (c.lockVas) {
+    for (const handleToLock of c.lockVas) {
+      // let csToUnlock = $convoStateForEachVAS.get(handleToLock);
+      // if (csToUnlock) {
+      changeVasLocked(handleToLock, false);
+      // }
+    }
+  }
+  if (c.retort) {
+    state.currentRetort = c.retort;
+  }
+}
 
 export const selectedVisualActionSourceState =
   () => {
@@ -240,6 +275,7 @@ export const selectedVisualActionSourceState =
     if (!state) {
       return undefined;
     }
+    // console.log('selected vas state', state)
     return state;
   }
 
@@ -351,17 +387,7 @@ export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined)
         actionsThatCanTargetMe: lastMsg.itemActions.filter((a) => a.associateWithUnit == e.unitId)
       } satisfies VisualUnitProps);
     }
-    for (const p of lastMsg.otherPlayers) {
-      newVups.push({
-        sprite: heroSpriteFromClass(p.class),
-        portrait: getHeroPortrait(p.class),
-        actual: {
-          kind: 'player',
-          entity: p
-        },
-        actionsThatCanTargetMe: lastMsg.itemActions.filter((a) => a.associateWithUnit == p.unitId)
-      });
-    }
+
     allVisualUnitProps = newVups;
 
     for (const vas of lastMsg.visualActionSources) {
@@ -379,7 +405,7 @@ export function syncVisualsToMsg(lastMsgFromServ: MessageFromServer | undefined)
 
     visualActionSources = uiVases;
     bus.dispatchEvent(new CustomEvent('ping', {
-      detail: { 
+      detail: {
         allVisualUnitProps: newVups,
         uiVases: uiVases,
       } satisfies EventDetail
@@ -424,7 +450,6 @@ export function syncConvoStateToVas(vas: VisualActionSourceInClient) {
 
   cs.set(vas.scene, sceneEntry);
   convoStateForEachVAS = cs
-
 }
 
 export function changeVasLocked(vId: VisualActionSourceId, unlock: boolean) {
