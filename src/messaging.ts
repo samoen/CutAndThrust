@@ -27,7 +27,6 @@ import {
 	type Player,
 	type PlayerInClient
 } from './users';
-import { worldReceived } from './ui';
 
 export const FAKE_LATENCY = 50;
 
@@ -49,14 +48,6 @@ export type MessageFromServer = {
 	visualActionSources: VisualActionSourceInClient[];
 	landscape: LandscapeImage;
 };
-
-export async function sendEveryoneWorld(triggeredBy: HeroId) {
-for (const user of users.values()) {
-    const toSend = buildNextMessage(user, triggeredBy);
-    worldReceived(toSend);
-    user.animations = [];
-	}
-}
 
 export function statusMapToStatusInClients(s: Map<StatusId, number>): StatusState[] {
 	const result: StatusState[] = [];
