@@ -146,7 +146,7 @@ export type ItemAnimationBehaviorAnimatesToUnit = MissleAnimation | MeleeAnimati
 
 export type ItemAnimationBehavior =
 	| MissleAnimation
-	| MeleeAnimation
+  | MeleeAnimation
 	| CenterAnimation
 	| SelfInflictAnimation;
 

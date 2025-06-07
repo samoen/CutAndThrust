@@ -1,9 +1,9 @@
 import './style.css'
-import { addNewUser, users } from './users'
+import * as Ui from './ui'
+import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { allVisualUnitProps, choose, chooseVasResponse, convoStateForEachVAS, ensureSelectedUnit, resetSceneConvos, selectedDetail, selectedVasResponsesToShow, selectedVisualActionSourceState, syncVisualsToMsg, typedInventory, uiStateYep, vasesToShow, visualActionSources, type ConvoState, type UIVas, type VisualUnitProps } from './ui'
-import { anySprites, getHeroPortrait, getLandscape, getPortrait } from './assets'
+import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, heroSpriteFromClass } from './assets'
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
@@ -62,10 +62,10 @@ yourSceneLabel.style.borderTopWidth = '1px'
 yourSceneLabel.style.borderLeftWidth = '1px'
 yourSceneLabel.style.color = 'brown'
 yourSceneLabel.style.backgroundColor = 'beige'
-listenBus((uiEvent)=>{
-  if(uiEvent.kind != 'ping')return
-  if(!uiStateYep.lastMsgFromServer)return
-  yourSceneLabel.textContent = uiStateYep.lastMsgFromServer.yourInfo.currentSceneDisplay
+listenBus((uiEvent) => {
+  if (uiEvent.kind != 'ping') return
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  yourSceneLabel.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.currentSceneDisplay
 })
 wrapGameField.appendChild(yourSceneLabel)
 
@@ -99,8 +99,8 @@ imageBackgroundImg.draggable = false
 imageBackgroundImg.style.minWidth = '100vw'
 listenBus((uiEvent) => {
   if (uiEvent.kind != 'ping') return
-  if(!uiStateYep.lastMsgFromServer?.landscape)return
-  imageBackgroundImg.src = getLandscape(uiStateYep.lastMsgFromServer.landscape)
+  if (!Ui.uiStateYep.lastMsgFromServer?.landscape) return
+  imageBackgroundImg.src = getLandscape(Ui.uiStateYep.lastMsgFromServer.landscape)
 })
 bgAndGrad.appendChild(imageBackgroundImg)
 
@@ -126,14 +126,19 @@ applyUnitsStyle(units1)
 visual.appendChild(units1)
 listenBus((uiEvent) => {
   if (uiEvent.kind != 'ping') return
-  for (let vup of allVisualUnitProps) {
-    if (!unitElements.some(ue => ue.unitId == vup.actual.entity.unitId)) {
-      putUnit({ vup: vup })
+  if(!Ui.uiStateYep.lastMsgFromServer)return
+  let playerElement = unitElements.find(ue=>ue.unitId == Ui.uiStateYep.lastMsgFromServer!.yourInfo.unitId)  
+  if(!playerElement){
+    putUnit({vup:{kind:'player',entity:Ui.uiStateYep.lastMsgFromServer!.yourInfo}})
+  }
+  for (let vup of Ui.uiStateYep.lastMsgFromServer.enemiesInScene) {
+    if (!unitElements.some(ue => ue.unitId == vup.unitId)) {
+      putUnit({ vup: {kind:'enemy',entity:vup} })
     }
   }
 })
 
-function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void } {
+function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement } {
   let unitAndArea = document.createElement('div')
   unitAndArea.style.display = 'flex'
   unitAndArea.style.flexDirection = 'row'
@@ -183,9 +188,9 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   guestAreaPlaceholder.style.width = '50%'
   guestAreaPlaceholder.style.height = 'auto'
   unitAndArea.appendChild(guestAreaPlaceholder)
-  function indicateSelected(){
-    if(!uiStateYep.lastUnitClicked)return
-    if (uiStateYep.lastUnitClicked == arg.unitId) {
+  function indicateSelected() {
+    if (!Ui.uiStateYep.lastUnitClicked) return
+    if (Ui.uiStateYep.lastUnitClicked == arg.unitId) {
       homePlaceholder.style.boxShadow = '0 0 20px rgb(0, 0, 0, 0.4)';
     } else {
       homePlaceholder.style.boxShadow = 'none'
@@ -197,48 +202,113 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   homePlaceholder.addEventListener('click', () => {
-    uiStateYep.lastUnitClicked = arg.unitId
+    Ui.uiStateYep.lastUnitClicked = arg.unitId
     dispatchBus({ uiEvent: { kind: 'visual-thing-selected', unitId: arg.unitId } })
   })
 
-  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove }
+  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
 }
 
-export function putUnit(arg: { vup: VisualUnitProps }) {
-  let unitHolder = createUnitAndArea({ unitId: arg.vup.actual.entity.unitId })
-  unitHolder.heroSprite.src = arg.vup.sprite
-  unitHolder.nameTag.textContent = arg.vup.actual.entity.displayName
-  if (arg.vup.actual.kind == 'enemy') {
+// function getDetailById(unitId: UnitId) : PlayerInClient{
+//   if (!Ui.uiStateYep.lastMsgFromServer) return undefined
+//   if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+//     return Ui.uiStateYep.lastMsgFromServer.yourInfo
+//   }
+//   let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
+//   if(vu)return vu
+// }
+
+export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
+  let unitHolder = createUnitAndArea({ unitId: arg.vup.entity.unitId })
+  if (arg.vup.kind == 'enemy') {
+    unitHolder.nameTag.textContent = arg.vup.entity.displayName
+    unitHolder.heroSprite.src = enemySprites[arg.vup.entity.template.id]
     unitHolder.heroSprite.style.transform = 'scaleX(-1)'
     unitHolder.homePlaceholder.style.order = '1'
   }
+  if (arg.vup.kind == 'player') {
+    unitHolder.nameTag.textContent = arg.vup.entity.displayName
+    unitHolder.heroSprite.src = heroSpriteFromClass(arg.vup.entity.class)
+
+  }
+  
+
+  let bars = document.createElement('div')
+  bars.style.height = 'clamp(17px, 1vw + 10px, 30px)';
+  bars.style.opacity = '0.7';
+  bars.style.display = 'flex';
+  bars.style.flexDirection = 'column';
+  bars.style.alignItems = 'center';
+  unitHolder.visualUnitTop.appendChild(bars)
+
+  let healthBar = document.createElement('div')
+  healthBar.style.width = '100%'
+  healthBar.style.height = '50%'
+  healthBar.style.border = '2px solid black'
+  healthBar.style.borderRadius = '5px'
+  healthBar.style.backgroundColor = 'black'
+  healthBar.style.marginBottom = '1px'
+  bars.appendChild(healthBar)
+
+  let healthBarHealth = document.createElement('div')
+  function getHpPercent() {
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+      if (Ui.uiStateYep.lastMsgFromServer.yourInfo.health > 0) {
+        return 100 * (Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth)
+      }
+    }
+    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.vup.entity.unitId)
+    if (vu) {
+      if (vu.health > 0) {
+        return 100 * (vu.health / vu.maxHealth)
+      }
+    }
+    return 0
+  }
+  healthBarHealth.style.width = `${getHpPercent()}%`
+  healthBarHealth.style.borderRadius = '5px'
+  healthBarHealth.style.backgroundColor = 'green';
+  healthBarHealth.style.transition = 'width 0.2s ease-in-out'
+  healthBarHealth.style.height = '100%'
+  healthBar.appendChild(healthBarHealth)
+  listenBus((uiEvent) => {
+    healthBarHealth.style.width = `${getHpPercent()}%`
+  })
+
+
   let onRemove = () => { }
   let updateOrRemoveUnit = () => {
-    let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.vup.actual.entity.unitId)
-    // console.log('unit event', vup)
-    if (vup) {
-      unitHolder.heroSprite.src = vup.sprite
-      unitHolder.nameTag.textContent = vup.actual.entity.displayName
-    } else {
-      onRemove()
-      unitHolder.unitAndArea.remove()
-      unitHolder.onRemove()
-      unitElements = unitElements.filter(ue => ue.unitId != arg.vup.actual.entity.unitId)
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+      unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
+      unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
+      return
     }
+    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(eic => eic.unitId == arg.vup.entity.unitId)
+    if (enemy) {
+      unitHolder.heroSprite.src = enemySprites[enemy.template.id]
+      unitHolder.nameTag.textContent = enemy.displayName
+      return
+    }
+    onRemove()
+    unitHolder.unitAndArea.remove()
+    unitHolder.onRemove()
+    unitElements = unitElements.filter(ue => ue.unitId != arg.vup.entity.unitId)
   }
   onRemove = listenBus((uiEvent) => {
     updateOrRemoveUnit()
   })
-  if (arg.vup.actual.kind == 'enemy') {
+  if (arg.vup.kind == 'enemy') {
     units2.appendChild(unitHolder.unitAndArea)
   }
-  if (arg.vup.actual.kind == 'player') {
+  if (arg.vup.kind == 'player') {
     units1.appendChild(unitHolder.unitAndArea)
   }
-  unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.actual.entity.unitId })
+  unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.entity.unitId })
 }
 
-export function putVas(arg: { uiVas: UIVas }) {
+export function putVas(arg: { uiVas: Ui.UIVas }) {
   let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id })
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
   unitHolder.heroSprite.src = anySprites[arg.uiVas.sprite]
@@ -248,7 +318,7 @@ export function putVas(arg: { uiVas: UIVas }) {
   vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id })
   let onRemove = () => { }
   let updateOrRemoveVas = () => {
-    let vas = vasesToShow().find(vas => vas.id == arg.uiVas.id)
+    let vas = Ui.vasesToShow().find(vas => vas.id == arg.uiVas.id)
     if (vas) {
       unitHolder.heroSprite.src = anySprites[vas.sprite]
       unitHolder.nameTag.textContent = vas.displayName
@@ -280,7 +350,7 @@ let units2 = document.createElement('div')
 applyUnitsStyle(units2)
 visual.appendChild(units2)
 function putMissingVases() {
-  for (let uiVas of vasesToShow()) {
+  for (let uiVas of Ui.vasesToShow()) {
     if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
       putVas({ uiVas: uiVas })
     }
@@ -324,16 +394,16 @@ portrait.style.height = '10svh';
 portrait.style.paddingTop = '4px';
 portrait.style.paddingInline = '4px';
 portrait.addEventListener('click', () => {
-  let selDetail = selectedDetail()
+  let selDetail = Ui.selectedDetail()
   if (!(selDetail && selDetail.kind == 'vas')) {
     return;
   }
-  resetSceneConvos(selDetail.entity.scene);
+  Ui.resetSceneConvos(selDetail.entity.scene);
   dispatchBus({ uiEvent: { kind: 'scene-reset' } })
 
-  let sd = selectedDetail()
+  let sd = Ui.selectedDetail()
   if (sd?.kind == 'vas') {
-    uiStateYep.lastUnitClicked = sd.entity.id
+    Ui.uiStateYep.lastUnitClicked = sd.entity.id
     dispatchBus({ uiEvent: { kind: 'visual-thing-selected', unitId: sd.entity.id } })
   }
 })
@@ -347,9 +417,14 @@ portraitImg.style.width = '100%';
 portraitImg.style.objectFit = 'cover';
 portrait.appendChild(portraitImg)
 listenBus((uiEvent) => {
-  // if (uiEvent.kind != 'visual-thing-selected') return
-  if(!uiStateYep.lastUnitClicked)return
-  let vas = visualActionSources.find(vas => vas.id == uiStateYep.lastUnitClicked)
+  if (!Ui.uiStateYep.lastUnitClicked) return
+  if(!Ui.uiStateYep.lastMsgFromServer) return
+  if(Ui.uiStateYep.lastUnitClicked == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId){
+    underPortrait.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
+    portraitImg.src = getHeroPortrait(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
+    return
+  }
+  let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas=>vas.id == Ui.uiStateYep.lastUnitClicked)
   if (vas) {
     underPortrait.textContent = vas.displayName
     if (vas.portrait) {
@@ -359,10 +434,14 @@ listenBus((uiEvent) => {
     portraitImg.src = anySprites[vas.sprite]
     return
   }
-  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == uiStateYep.lastUnitClicked)
-  if (vup) {
-    portraitImg.src = vup.portrait
-    underPortrait.textContent = vup.actual.entity.displayName
+  let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == Ui.uiStateYep.lastUnitClicked)
+  if (enemy) {
+    underPortrait.textContent = enemy.displayName
+    if(enemy.template.portrait){
+      portraitImg.src = getPortrait(enemy.template.portrait)
+    }else{
+      portraitImg.src = enemySprites[enemy.template.id]
+    }
   }
 })
 
@@ -399,7 +478,7 @@ vasdPrompt.style.whiteSpace = 'pre-wrap';
 vasdPrompt.style.lineHeight = '17px';
 function refreshPrompt() {
   vasdPrompt.remove()
-  let vasState = selectedVisualActionSourceState()
+  let vasState = Ui.selectedVisualActionSourceState()
   if (!vasState) return
   vasdPrompt.textContent = vasState.currentRetort
   vasdPromptAndButtons.insertAdjacentElement('afterbegin', vasdPrompt)
@@ -417,9 +496,10 @@ vasdButtons.style.flexWrap = 'wrap';
 vasdButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasdButtons)
 
-function refreshActionButtons(arg: { unitId: UnitId }) {
+function refreshActionButtons() {
+  if(!Ui.uiStateYep.lastUnitClicked)return
   vasdButtons.replaceChildren()
-  let vas = visualActionSources.find(vas => vas.id == arg.unitId)
+  let vas = Ui.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   // console.log("populate vas actions", vas)
   if (vas) {
     for (let gastc of vas.actionsInClient) {
@@ -432,12 +512,11 @@ function refreshActionButtons(arg: { unitId: UnitId }) {
       vasActionButton.style.backgroundColor = 'brown';
       vasActionButton.textContent = gastc.buttonText
       vasActionButton.addEventListener('click', () => {
-        choose(gastc)
-        dispatchBus({uiEvent:{kind:'ping'}})
+        Ui.choose(gastc)
       })
       vasdButtons.appendChild(vasActionButton)
     }
-    for (let convoResponse of selectedVasResponsesToShow()) {
+    for (let convoResponse of Ui.selectedVasResponsesToShow()) {
       let vasActionButton = document.createElement('button')
       vasActionButton.style.paddingInline = '0.7em';
       vasActionButton.style.paddingBlock = '0.6em';
@@ -447,39 +526,35 @@ function refreshActionButtons(arg: { unitId: UnitId }) {
       vasActionButton.style.backgroundColor = 'brown';
       vasActionButton.textContent = convoResponse.responseText
       vasActionButton.addEventListener('click', () => {
-        chooseVasResponse(convoResponse)
+        Ui.chooseVasResponse(convoResponse)
         dispatchBus({ uiEvent: { kind: 'response-chosen' } })
       })
       vasdButtons.appendChild(vasActionButton)
     }
     return
   }
-  let vup = allVisualUnitProps.find(vup => vup.actual.entity.unitId == arg.unitId)
-  if (vup) {
-    for (let value of typedInventory()) {
+  let meSelected = Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId == Ui.uiStateYep.lastUnitClicked
+  let enemy = Ui.uiStateYep.lastMsgFromServer?.enemiesInScene.find(vup => vup.unitId == Ui.uiStateYep.lastUnitClicked)
+  if (enemy || meSelected) {
+    for (let value of Ui.typedInventory()) {
       // for (let gastc of vup.actionsThatCanTargetMe) {
       let slotButton = document.createElement('button')
       slotButton.style.position = 'relative';
       slotButton.style.border = 'none';
       slotButton.style.background = 'none';
       slotButton.style.cursor = 'pointer';
-      if (value.disabled) {
-        // slotButton.disabled = true
-      }
-
+      let actionsAssociatedWithSelected = Ui.uiStateYep.lastMsgFromServer!.itemActions.filter((a) => a.associateWithUnit == Ui.uiStateYep.lastUnitClicked)
+      let gastc = actionsAssociatedWithSelected.find(a => a.itemId == value.itemState.stats.id)
       slotButton.addEventListener('click', () => {
         if (value.acts.length == 1) {
-          let act = value.acts.at(0)
-          if (act) {
-            console.log('choosing only option')
-            choose(act)
+          let firstAct = value.acts.at(0)
+          if (firstAct) {
+            Ui.choose(firstAct)
             return
           }
         }
-        let gastc = vup.actionsThatCanTargetMe.find(a => a.itemId == value.itemState.stats.id)
         if (gastc) {
-          console.log('choosing', gastc.buttonText)
-          choose(gastc)
+          Ui.choose(gastc)
           return
         }
       })
@@ -489,8 +564,7 @@ function refreshActionButtons(arg: { unitId: UnitId }) {
       slotImg.src = value.img
       slotImg.style.display = 'block';
       slotImg.style.borderRadius = '10px';
-      console.log('refreshing slot', value)
-      if (value.disabled) {
+      if (value.disabled || (!gastc && value.acts.length != 1)) {
         slotImg.style.opacity = '0.5'
       }
       slotButton.appendChild(slotImg)
@@ -498,8 +572,8 @@ function refreshActionButtons(arg: { unitId: UnitId }) {
   }
 }
 listenBus((uiEvent) => {
-  if (uiStateYep.lastUnitClicked) {
-    refreshActionButtons({ unitId: uiStateYep.lastUnitClicked })
+  if (Ui.uiStateYep.lastUnitClicked) {
+    refreshActionButtons()
   }
 })
 
@@ -507,10 +581,9 @@ let added = addNewUser("my name")
 if (added) {
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
-  uiStateYep.lastMsgFromServer = msg
-  syncVisualsToMsg()
-  ensureSelectedUnit()
-  console.log('first ping')
+  Ui.uiStateYep.lastMsgFromServer = msg
+  Ui.syncVisualsToMsg()
+  Ui.ensureSelectedUnit()
   dispatchBus({ uiEvent: { kind: 'ping' } })
 }
 

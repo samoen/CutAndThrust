@@ -233,6 +233,7 @@ export function removeStatus(bee: BattleEventEntity, st: StatusData) {
 }
 
 export function enterSceneOrWakeup(player: Player) {
+  console.log('enter')
 	const enteringScene = getSceneData(player);
 	const scenePlayers = activePlayersInScene(player.currentUniqueSceneId);
 

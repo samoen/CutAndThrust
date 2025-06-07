@@ -14,10 +14,21 @@ import {
   heroSpriteFromClass
 } from './assets';
 import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from './utils';
+import { dispatchBus } from './main';
 
 type HeroSpecificEnemyState = { hName: HeroName; agg: number; sts: StatusState[] };
 
-type UnitDetails =
+export type HeroOrEnemy =
+  | {
+    kind: 'enemy';
+    entity: EnemyInClient;
+  }
+  | {
+    kind: 'player';
+    entity: PlayerInClient;
+  };
+
+export type UnitDetails =
   | {
     kind: 'enemy';
     entity: EnemyInClient;
@@ -61,18 +72,7 @@ export const uiStateYep = {
   lastMsgFromServer: undefined as MessageFromServer | undefined
 }
 
-
-export const allies = () => {
-  const calAllies = allVisualUnitProps.filter((v) => v.actual.kind == 'player');
-  return calAllies;
-};
-
-export const enemies = () => {
-  return allVisualUnitProps.filter((p) => p.actual.kind == 'enemy');
-};
-
 export const vasesToShow = () => {
-  // return visualActionSources
   return visualActionSources.filter((s) => {
     const csForE = convoStateForEachVAS.get(s.scene);
     if (!csForE) return false;
@@ -159,7 +159,7 @@ export const typedInventory =
 export type DetailWindow =
   | { kind: 'vup'; entity: VisualUnitProps; unitId: UnitId; }
   | { kind: 'vas'; entity: UIVas; unitId: UnitId }
-  // | { kind: 'bg' };
+// | { kind: 'bg' };
 
 export const selectedDetail: () => DetailWindow | undefined = () => {
   // if (uiStateYep.lastUnitClicked == 'background') {
@@ -170,11 +170,11 @@ export const selectedDetail: () => DetailWindow | undefined = () => {
   if (vupAt) return { kind: 'vup', entity: vupAt, unitId: vupAt.actual.entity.unitId }
 
   const vasAt = vasesToShow().find((v) => v.id == uiStateYep.lastUnitClicked);
-  if (vasAt) return { kind: 'vas', entity: vasAt, unitId:vasAt.id }
+  if (vasAt) return { kind: 'vas', entity: vasAt, unitId: vasAt.id }
 
   // if last unit clicked not valid, fall back to first enemy
   const firstEnemy = allVisualUnitProps.find((v) => v.actual.kind == 'enemy');
-  if (firstEnemy) return { kind: 'vup', entity: firstEnemy, unitId:firstEnemy.actual.entity.unitId };
+  if (firstEnemy) return { kind: 'vup', entity: firstEnemy, unitId: firstEnemy.actual.entity.unitId };
 
   // if no enemies fall back to first unlocked vas with an unlock action or response
 
@@ -202,7 +202,7 @@ export const selectedDetail: () => DetailWindow | undefined = () => {
 
   // if no unlocked vas fall back to self
   const me = allVisualUnitProps.at(0);
-  if (me) return { kind: 'vup', entity: me, unitId:me.actual.entity.unitId };
+  if (me) return { kind: 'vup', entity: me, unitId: me.actual.entity.unitId };
 
   return undefined;
 }
@@ -555,7 +555,7 @@ export function choose(
   );
 
   if (!actionFromId) {
-    console.log('chosen action not valid', chosen.buttonText, playerActions.map(a=>a.buttonText))
+    console.log('chosen action not valid', chosen.buttonText, playerActions.map(a => a.buttonText))
     return
   }
   handlePlayerAction(player, actionFromId);
@@ -563,15 +563,17 @@ export function choose(
   let msg = buildNextMessage(player, player.unitId)
   uiStateYep.lastMsgFromServer = msg
   syncVisualsToMsg()
+  ensureSelectedUnit()
+  dispatchBus({ uiEvent: { kind: 'ping' } })
 }
 
-export function ensureSelectedUnit(){
+export function ensureSelectedUnit() {
   let sel = selectedDetail()
-  if(!sel){
+  if (!sel) {
     console.log('failed to ensure unit selected')
     return
   }
-  if(sel.unitId != uiStateYep.lastUnitClicked){
+  if (sel.unitId != uiStateYep.lastUnitClicked) {
     uiStateYep.lastUnitClicked = sel.unitId
     // dispatchBus({ uiEvent: { kind: 'visual-thing-selected', unitId:sel.unitId } })
   }
