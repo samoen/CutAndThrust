@@ -1,8 +1,9 @@
 import './style.css'
 import * as Ui from './ui'
+import * as Logic from './logic'
 import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
-import { updatePlayerActions, type VisualActionSourceInClient } from './logic'
+import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
 import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, heroSpriteFromClass } from './assets'
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
@@ -203,20 +204,11 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
 
   homePlaceholder.addEventListener('click', () => {
     Ui.uiStateYep.lastUnitClicked = arg.unitId
-    dispatchBus({ uiEvent: { kind: 'visual-thing-selected', unitId: arg.unitId } })
+    dispatchBus({ uiEvent: { kind: 'ping' } })
   })
 
   return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
 }
-
-// function getDetailById(unitId: UnitId) : PlayerInClient{
-//   if (!Ui.uiStateYep.lastMsgFromServer) return undefined
-//   if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
-//     return Ui.uiStateYep.lastMsgFromServer.yourInfo
-//   }
-//   let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
-//   if(vu)return vu
-// }
 
 export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   let unitHolder = createUnitAndArea({ unitId: arg.vup.entity.unitId })
@@ -308,7 +300,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.entity.unitId })
 }
 
-export function putVas(arg: { uiVas: Ui.UIVas }) {
+export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id })
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
   unitHolder.heroSprite.src = anySprites[arg.uiVas.sprite]
@@ -318,7 +310,7 @@ export function putVas(arg: { uiVas: Ui.UIVas }) {
   vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id })
   let onRemove = () => { }
   let updateOrRemoveVas = () => {
-    let vas = Ui.vasesToShow().find(vas => vas.id == arg.uiVas.id)
+    let vas = Ui.vasesToShow2().find(vas => vas.id == arg.uiVas.id)
     if (vas) {
       unitHolder.heroSprite.src = anySprites[vas.sprite]
       unitHolder.nameTag.textContent = vas.displayName
@@ -330,9 +322,7 @@ export function putVas(arg: { uiVas: Ui.UIVas }) {
     }
   }
   onRemove = listenBus((uiEvent) => {
-    if (uiEvent.kind == 'ping' || uiEvent.kind == 'scene-reset' || uiEvent.kind == 'response-chosen') {
       updateOrRemoveVas()
-    }
   })
 }
 
@@ -350,7 +340,7 @@ let units2 = document.createElement('div')
 applyUnitsStyle(units2)
 visual.appendChild(units2)
 function putMissingVases() {
-  for (let uiVas of Ui.vasesToShow()) {
+  for (let uiVas of Ui.vasesToShow2()) {
     if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
       putVas({ uiVas: uiVas })
     }
@@ -358,9 +348,7 @@ function putMissingVases() {
 }
 
 listenBus((uiEvent) => {
-  if (uiEvent.kind == 'ping' || uiEvent.kind == 'response-chosen') {
-    putMissingVases()
-  }
+  putMissingVases()
 })
 let selectedDetails = document.createElement('div')
 selectedDetails.style.backgroundRepeat = 'no-repeat';
@@ -394,18 +382,15 @@ portrait.style.height = '10svh';
 portrait.style.paddingTop = '4px';
 portrait.style.paddingInline = '4px';
 portrait.addEventListener('click', () => {
-  let selDetail = Ui.selectedDetail()
-  if (!(selDetail && selDetail.kind == 'vas')) {
-    return;
-  }
-  Ui.resetSceneConvos(selDetail.entity.scene);
-  dispatchBus({ uiEvent: { kind: 'scene-reset' } })
-
-  let sd = Ui.selectedDetail()
-  if (sd?.kind == 'vas') {
-    Ui.uiStateYep.lastUnitClicked = sd.entity.id
-    dispatchBus({ uiEvent: { kind: 'visual-thing-selected', unitId: sd.entity.id } })
-  }
+  if(!Ui.uiStateYep.lastUnitClicked)return
+  let vasPortraitClicked = Ui.vasesToShow2().find(vas=>vas.id == Ui.uiStateYep.lastUnitClicked)
+  if(!vasPortraitClicked)return
+  Ui.resetSceneConvos(vasPortraitClicked.scene);
+  
+  let validToBeSelected = Ui.checkSelectedUnitValid()
+  if(!validToBeSelected)return
+  Ui.uiStateYep.lastUnitClicked = validToBeSelected
+  dispatchBus({ uiEvent: { kind: 'ping' }})
 })
 selectedPortrait.appendChild(portrait)
 
@@ -498,11 +483,13 @@ vasdPromptAndButtons.appendChild(vasdButtons)
 
 function refreshActionButtons() {
   if(!Ui.uiStateYep.lastUnitClicked)return
+  if(!Ui.uiStateYep.lastMsgFromServer)return
   vasdButtons.replaceChildren()
   let vas = Ui.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   // console.log("populate vas actions", vas)
   if (vas) {
-    for (let gastc of vas.actionsInClient) {
+    let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
+    for (let gastc of actionsForSelectedVas) {
       let vasActionButton = document.createElement('button')
       vasActionButton.style.paddingInline = '0.7em';
       vasActionButton.style.paddingBlock = '0.6em';
@@ -527,7 +514,7 @@ function refreshActionButtons() {
       vasActionButton.textContent = convoResponse.responseText
       vasActionButton.addEventListener('click', () => {
         Ui.chooseVasResponse(convoResponse)
-        dispatchBus({ uiEvent: { kind: 'response-chosen' } })
+        dispatchBus({ uiEvent: { kind: 'ping' } })
       })
       vasdButtons.appendChild(vasActionButton)
     }
@@ -579,6 +566,7 @@ listenBus((uiEvent) => {
 
 let added = addNewUser("my name")
 if (added) {
+  // changeScene(added.player, 'soloTrain0')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg

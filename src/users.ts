@@ -29,7 +29,7 @@ export function addNewUser(heroName: string): { id: string; player: Player } | u
 	// startflags.add('killedGoblins')
 
 	let startSceneId: SceneDataId = startSceneDataId;
-	startSceneId = 'soloTrain0'
+	// startSceneId = 'soloTrain0'
 	// startSceneId = 'throne'
 	// startSceneId = 'armory'
 

@@ -81,6 +81,16 @@ export const vasesToShow = () => {
     return !cs.isLocked;
   });
 }
+export function vasesToShow2():VisualActionSourceInClient[] {
+  if(!uiStateYep.lastMsgFromServer)return[]
+  return uiStateYep.lastMsgFromServer.visualActionSources.filter((s) => {
+    const csForE = convoStateForEachVAS.get(s.scene);
+    if (!csForE) return false;
+    const cs = csForE.get(s.id);
+    if (!cs) return false;
+    return !cs.isLocked;
+  });
+}
 
 export function resetSceneConvos(sceneId: SceneDataId) {
   const vasesToReset = visualActionSources.filter((v) => v.scene == sceneId);
@@ -161,6 +171,48 @@ export type DetailWindow =
   | { kind: 'vas'; entity: UIVas; unitId: UnitId }
 // | { kind: 'bg' };
 
+export function checkSelectedUnitValid():UnitId | undefined{
+  if(!uiStateYep.lastMsgFromServer)return undefined
+  // if(!uiStateYep.lastUnitClicked)return undefined
+  if(uiStateYep.lastUnitClicked){
+    if(uiStateYep.lastUnitClicked == uiStateYep.lastMsgFromServer.yourInfo.unitId) return uiStateYep.lastUnitClicked
+    const vupAt =  uiStateYep.lastMsgFromServer.enemiesInScene.find((v) => v.unitId == uiStateYep.lastUnitClicked)
+    if (vupAt) return uiStateYep.lastUnitClicked
+    const vasAt = vasesToShow2().find((v) => v.id == uiStateYep.lastUnitClicked);
+    if (vasAt) return uiStateYep.lastUnitClicked
+  }
+  // if last unit clicked not valid, fall back to first enemy
+  const firstEnemy = allVisualUnitProps.find((v) => v.actual.kind == 'enemy');
+  if (firstEnemy) return firstEnemy.actual.entity.unitId
+
+  // if no enemies fall back to first unlocked vas with an unlocked action or response
+  let firstVas = undefined;
+  outer: for (const vas of vasesToShow2()) {
+    const csForE = convoStateForEachVAS.get(vas.scene);
+    if (!csForE) continue;
+    const cs = csForE.get(vas.id);
+    if (!cs) continue;
+    // if (cs.kind != 'seen') continue
+    let actionsForThisVas = uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == vas.id);
+    for (const act of actionsForThisVas) {
+      firstVas = vas;
+      break outer;
+    }
+    for (const r of vas.responses) {
+      if (cs.lockedResponseHandles.get(r.responseId) == false) {
+        firstVas = vas;
+        break outer;
+      }
+    }
+  }
+  if (firstVas) {
+    return firstVas.id ;
+  }
+
+  // if no unlocked vas fall back to self
+  return uiStateYep.lastMsgFromServer.yourInfo.unitId
+}
+
 export const selectedDetail: () => DetailWindow | undefined = () => {
   // if (uiStateYep.lastUnitClicked == 'background') {
   //   return { kind: 'bg' }
@@ -176,8 +228,7 @@ export const selectedDetail: () => DetailWindow | undefined = () => {
   const firstEnemy = allVisualUnitProps.find((v) => v.actual.kind == 'enemy');
   if (firstEnemy) return { kind: 'vup', entity: firstEnemy, unitId: firstEnemy.actual.entity.unitId };
 
-  // if no enemies fall back to first unlocked vas with an unlock action or response
-
+  // if no enemies fall back to first unlocked vas with an unlocked action or response
   let firstVas = undefined;
   outer: for (const vas of vasesToShow()) {
     const csForE = convoStateForEachVAS.get(vas.scene);
