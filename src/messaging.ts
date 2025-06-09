@@ -104,7 +104,9 @@ export function buildNextMessage(forPlayer: Player, triggeredBy: HeroId): Messag
 		itemActions: forPlayer.itemActions.map((gameAction) =>
 			convertServerActionToClientAction(gameAction)
 		),
-		vasActions: forPlayer.vasActions,
+		vasActions: forPlayer.vasActions.map((gameAction) =>
+			convertServerActionToClientAction(gameAction)
+		),
 		visualActionSources: forPlayer.visualActionSources.map((s) => {
 			return convertVasToClient(s, forPlayer);
 		}),

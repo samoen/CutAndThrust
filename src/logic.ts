@@ -1109,7 +1109,8 @@ export function convertServerActionToClientAction(sa: GameAction): GameActionSen
 	return {
 		buttonText: sa.buttonText,
 		itemId: sa.itemId,
-		associateWithUnit: sa.associateWithUnit
+		associateWithUnit: sa.associateWithUnit,
+    pickupItem: sa.unlockableActData?.pickupItem
 	};
 }
 

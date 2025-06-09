@@ -72,15 +72,6 @@ export const uiStateYep = {
   lastMsgFromServer: undefined as MessageFromServer | undefined
 }
 
-export const vasesToShow = () => {
-  return visualActionSources.filter((s) => {
-    const csForE = convoStateForEachVAS.get(s.scene);
-    if (!csForE) return false;
-    const cs = csForE.get(s.id);
-    if (!cs) return false;
-    return !cs.isLocked;
-  });
-}
 export function vasesToShow2(): VisualActionSourceInClient[] {
   if (!uiStateYep.lastMsgFromServer) return []
   return uiStateYep.lastMsgFromServer.visualActionSources.filter((s) => {
@@ -232,18 +223,12 @@ export function chooseVasResponse(c: ConversationResponse) {
   }
   if (c.unlockVas) {
     for (const handleToUnlock of c.unlockVas) {
-      // let csToUnlock = $convoStateForEachVAS.get(handleToUnlock);
-      // if (csToUnlock) {
       changeVasLocked(handleToUnlock, true);
-      // }
     }
   }
   if (c.lockVas) {
     for (const handleToLock of c.lockVas) {
-      // let csToUnlock = $convoStateForEachVAS.get(handleToLock);
-      // if (csToUnlock) {
       changeVasLocked(handleToLock, false);
-      // }
     }
   }
   if (c.retort) {

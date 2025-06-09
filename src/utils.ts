@@ -183,6 +183,7 @@ export type GameActionSentToClient = {
 	buttonText: string;
 	itemId?: ItemId;
 	associateWithUnit?: UnitId;
+  pickupItem?:ItemId
 };
 
 export type EnemyName = string;

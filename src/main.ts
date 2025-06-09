@@ -480,7 +480,7 @@ function refreshActionButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
   vasdButtons.replaceChildren()
-  let vas = Ui.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
+  let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   // console.log("populate vas actions", vas)
   if (vas) {
     let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
@@ -494,6 +494,9 @@ function refreshActionButtons() {
       vasActionButton.style.backgroundColor = 'brown';
       vasActionButton.textContent = gastc.buttonText
       vasActionButton.addEventListener('click', () => {
+        if(gastc.pickupItem){
+          Ui.changeVasLocked(vas.id, false)
+        }
         Ui.choose(gastc)
       })
       vasdButtons.appendChild(vasActionButton)
@@ -561,7 +564,7 @@ listenBus((uiEvent) => {
 
 let added = addNewUser("my name")
 if (added) {
-  // changeScene(added.player, 'soloTrain0')
+  changeScene(added.player, 'soloTrain0')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
