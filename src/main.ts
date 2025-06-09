@@ -127,14 +127,14 @@ applyUnitsStyle(units1)
 visual.appendChild(units1)
 listenBus((uiEvent) => {
   if (uiEvent.kind != 'ping') return
-  if(!Ui.uiStateYep.lastMsgFromServer)return
-  let playerElement = unitElements.find(ue=>ue.unitId == Ui.uiStateYep.lastMsgFromServer!.yourInfo.unitId)  
-  if(!playerElement){
-    putUnit({vup:{kind:'player',entity:Ui.uiStateYep.lastMsgFromServer!.yourInfo}})
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  let playerElement = unitElements.find(ue => ue.unitId == Ui.uiStateYep.lastMsgFromServer!.yourInfo.unitId)
+  if (!playerElement) {
+    putUnit({ vup: { kind: 'player', entity: Ui.uiStateYep.lastMsgFromServer!.yourInfo } })
   }
   for (let vup of Ui.uiStateYep.lastMsgFromServer.enemiesInScene) {
     if (!unitElements.some(ue => ue.unitId == vup.unitId)) {
-      putUnit({ vup: {kind:'enemy',entity:vup} })
+      putUnit({ vup: { kind: 'enemy', entity: vup } })
     }
   }
 })
@@ -223,7 +223,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
     unitHolder.heroSprite.src = heroSpriteFromClass(arg.vup.entity.class)
 
   }
-  
+
 
   let bars = document.createElement('div')
   bars.style.height = 'clamp(17px, 1vw + 10px, 30px)';
@@ -322,7 +322,7 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
     }
   }
   onRemove = listenBus((uiEvent) => {
-      updateOrRemoveVas()
+    updateOrRemoveVas()
   })
 }
 
@@ -382,15 +382,12 @@ portrait.style.height = '10svh';
 portrait.style.paddingTop = '4px';
 portrait.style.paddingInline = '4px';
 portrait.addEventListener('click', () => {
-  if(!Ui.uiStateYep.lastUnitClicked)return
-  let vasPortraitClicked = Ui.vasesToShow2().find(vas=>vas.id == Ui.uiStateYep.lastUnitClicked)
-  if(!vasPortraitClicked)return
+  if (!Ui.uiStateYep.lastUnitClicked) return
+  let vasPortraitClicked = Ui.vasesToShow2().find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
+  if (!vasPortraitClicked) return
   Ui.resetSceneConvos(vasPortraitClicked.scene);
-  
-  let validToBeSelected = Ui.checkSelectedUnitValid()
-  if(!validToBeSelected)return
-  Ui.uiStateYep.lastUnitClicked = validToBeSelected
-  dispatchBus({ uiEvent: { kind: 'ping' }})
+  Ui.ensureSelectedUnit()
+  dispatchBus({ uiEvent: { kind: 'ping' } })
 })
 selectedPortrait.appendChild(portrait)
 
@@ -403,13 +400,13 @@ portraitImg.style.objectFit = 'cover';
 portrait.appendChild(portraitImg)
 listenBus((uiEvent) => {
   if (!Ui.uiStateYep.lastUnitClicked) return
-  if(!Ui.uiStateYep.lastMsgFromServer) return
-  if(Ui.uiStateYep.lastUnitClicked == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId){
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  if (Ui.uiStateYep.lastUnitClicked == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
     underPortrait.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
     portraitImg.src = getHeroPortrait(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
     return
   }
-  let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas=>vas.id == Ui.uiStateYep.lastUnitClicked)
+  let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   if (vas) {
     underPortrait.textContent = vas.displayName
     if (vas.portrait) {
@@ -422,9 +419,9 @@ listenBus((uiEvent) => {
   let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == Ui.uiStateYep.lastUnitClicked)
   if (enemy) {
     underPortrait.textContent = enemy.displayName
-    if(enemy.template.portrait){
+    if (enemy.template.portrait) {
       portraitImg.src = getPortrait(enemy.template.portrait)
-    }else{
+    } else {
       portraitImg.src = enemySprites[enemy.template.id]
     }
   }
@@ -463,15 +460,13 @@ vasdPrompt.style.whiteSpace = 'pre-wrap';
 vasdPrompt.style.lineHeight = '17px';
 function refreshPrompt() {
   vasdPrompt.remove()
-  let vasState = Ui.selectedVisualActionSourceState()
+  let vasState = Ui.selectedVisualActionSourceState2()
   if (!vasState) return
   vasdPrompt.textContent = vasState.currentRetort
   vasdPromptAndButtons.insertAdjacentElement('afterbegin', vasdPrompt)
 }
 listenBus((uiEvent) => {
   refreshPrompt()
-  // if (uiEvent.kind == 'visual-thing-selected' || uiEvent.kind == 'response-chosen') {
-  // }
 })
 
 let vasdButtons = document.createElement('div')
@@ -482,8 +477,8 @@ vasdButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasdButtons)
 
 function refreshActionButtons() {
-  if(!Ui.uiStateYep.lastUnitClicked)return
-  if(!Ui.uiStateYep.lastMsgFromServer)return
+  if (!Ui.uiStateYep.lastUnitClicked) return
+  if (!Ui.uiStateYep.lastMsgFromServer) return
   vasdButtons.replaceChildren()
   let vas = Ui.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   // console.log("populate vas actions", vas)
@@ -503,7 +498,7 @@ function refreshActionButtons() {
       })
       vasdButtons.appendChild(vasActionButton)
     }
-    for (let convoResponse of Ui.selectedVasResponsesToShow()) {
+    for (let convoResponse of Ui.selectedVasResponsesToShow2()) {
       let vasActionButton = document.createElement('button')
       vasActionButton.style.paddingInline = '0.7em';
       vasActionButton.style.paddingBlock = '0.6em';
