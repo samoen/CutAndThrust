@@ -8,6 +8,7 @@ import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, h
 import type { HeroId, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
+import { getAggroForPlayer } from './enemies'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
@@ -224,7 +225,6 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
 
   }
 
-
   let bars = document.createElement('div')
   bars.style.height = 'clamp(17px, 1vw + 10px, 30px)';
   bars.style.opacity = '0.7';
@@ -241,10 +241,9 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   healthBar.style.backgroundColor = 'black'
   healthBar.style.marginBottom = '1px'
   bars.appendChild(healthBar)
-
   let healthBarHealth = document.createElement('div')
-  function getHpPercent() {
-    if (!Ui.uiStateYep.lastMsgFromServer) return
+  function getHpPercent(): number {
+    if (!Ui.uiStateYep.lastMsgFromServer) return 0
     if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
       if (Ui.uiStateYep.lastMsgFromServer.yourInfo.health > 0) {
         return 100 * (Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth)
@@ -264,12 +263,36 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   healthBarHealth.style.transition = 'width 0.2s ease-in-out'
   healthBarHealth.style.height = '100%'
   healthBar.appendChild(healthBarHealth)
-  listenBus((uiEvent) => {
+  let removeHealthListener = listenBus((uiEvent) => {
     healthBarHealth.style.width = `${getHpPercent()}%`
   })
+  let removeAggroListener = ()=>{}
+  if (arg.vup.kind == 'enemy') {
+    let aggroBar = document.createElement('div')
+    aggroBar.style.height = '50%';
+    aggroBar.style.borderRadius = '5px';
+    aggroBar.style.backgroundColor = 'black';
+    aggroBar.style.width = '85%';
+    aggroBar.style.border = '2px solid black';
+    bars.appendChild(aggroBar)
 
+    function getMyAggro() {
+      if (!Ui.uiStateYep.lastMsgFromServer) return 0
+      let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.vup.entity.unitId)
+      if (!vu) return 0
+      return vu.myAggro
+    }
+    let aggro = document.createElement('div')
+    aggro.style.width = `${getMyAggro()}%`
+    aggro.style.backgroundColor = 'purple';
+    aggro.style.transition = 'width 0.2s ease-in-out';
+    aggro.style.height = '100%';
+    aggroBar.appendChild(aggro)
+    removeAggroListener = listenBus(()=>{
+      aggro.style.width = `${getMyAggro()}%`
+    })
+  }
 
-  let onRemove = () => { }
   let updateOrRemoveUnit = () => {
     if (!Ui.uiStateYep.lastMsgFromServer) return
     if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
@@ -283,13 +306,15 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
       unitHolder.nameTag.textContent = enemy.displayName
       return
     }
-    onRemove()
+    removeUpdateUnitListener()
     unitHolder.unitAndArea.remove()
     unitHolder.onRemove()
     unitElements = unitElements.filter(ue => ue.unitId != arg.vup.entity.unitId)
   }
-  onRemove = listenBus((uiEvent) => {
+  let removeUpdateUnitListener = listenBus((uiEvent) => {
     updateOrRemoveUnit()
+    removeHealthListener()
+    removeAggroListener()
   })
   if (arg.vup.kind == 'enemy') {
     units2.appendChild(unitHolder.unitAndArea)
@@ -494,7 +519,7 @@ function refreshActionButtons() {
       vasActionButton.style.backgroundColor = 'brown';
       vasActionButton.textContent = gastc.buttonText
       vasActionButton.addEventListener('click', () => {
-        if(gastc.pickupItem){
+        if (gastc.pickupItem) {
           Ui.changeVasLocked(vas.id, false)
         }
         Ui.choose(gastc)
