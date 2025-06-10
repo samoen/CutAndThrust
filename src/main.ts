@@ -4,8 +4,8 @@ import * as Logic from './logic'
 import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, heroSpriteFromClass } from './assets'
-import type { HeroId, UnitId, VisualActionSourceId } from './utils'
+import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
+import type { HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
 import { getAggroForPlayer } from './enemies'
@@ -174,11 +174,41 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   outerHeroSprite.style.width = '100%'
   visualUnitTop.appendChild(outerHeroSprite)
 
+  let statuses = document.createElement('div')
+  statuses.style.position = 'absolute';
+  statuses.style.top = '0';
+  statuses.style.left = '0';
+  statuses.style.zIndex = '2';
+  outerHeroSprite.appendChild(statuses)
+
+  function updateStatuses() {
+    statuses.replaceChildren()
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    let statusStates: StatusState[] = []
+    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.unitId)
+    if (enemy) {
+      statusStates = enemy.statuses
+    }
+    if (arg.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+      statusStates = Ui.uiStateYep.lastMsgFromServer.yourInfo.statuses
+    }
+    for (let s of statusStates) {
+      let status = document.createElement('img')
+      status.style.display = 'flex'
+      status.style.height = 'clamp(14px, 1vw + 10px, 30px)'
+      status.src = getStatusImage(s.statusId)
+      statuses.appendChild(status)
+    }
+  }
+  updateStatuses()
+  let removeStatusListen = listenBus(() => {
+    updateStatuses()
+  })
+
   let heroSprite = document.createElement('img')
   heroSprite.style.display = 'block'
   heroSprite.style.width = '100%'
   heroSprite.style.aspectRatio = '1/1'
-  // heroSprite.src = bowman
   outerHeroSprite.appendChild(heroSprite)
   heroSprite.draggable = false
 
@@ -199,7 +229,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     }
   }
   indicateSelected()
-  let onRemove = listenBus((uiEvent) => {
+  let removeSelectedListener = listenBus((uiEvent) => {
     indicateSelected()
   })
 
@@ -207,6 +237,11 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     Ui.uiStateYep.lastUnitClicked = arg.unitId
     dispatchBus({ uiEvent: { kind: 'ping' } })
   })
+
+  let onRemove = () => {
+    removeSelectedListener()
+    removeStatusListen()
+  }
 
   return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
 }
@@ -266,7 +301,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   let removeHealthListener = listenBus((uiEvent) => {
     healthBarHealth.style.width = `${getHpPercent()}%`
   })
-  let removeAggroListener = ()=>{}
+  let removeAggroListener = () => { }
   if (arg.vup.kind == 'enemy') {
     let aggroBar = document.createElement('div')
     aggroBar.style.height = '50%';
@@ -288,7 +323,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
     aggro.style.transition = 'width 0.2s ease-in-out';
     aggro.style.height = '100%';
     aggroBar.appendChild(aggro)
-    removeAggroListener = listenBus(()=>{
+    removeAggroListener = listenBus(() => {
       aggro.style.width = `${getMyAggro()}%`
     })
   }
@@ -307,14 +342,14 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
       return
     }
     removeUpdateUnitListener()
+    removeHealthListener()
+    removeAggroListener()
     unitHolder.unitAndArea.remove()
     unitHolder.onRemove()
     unitElements = unitElements.filter(ue => ue.unitId != arg.vup.entity.unitId)
   }
   let removeUpdateUnitListener = listenBus((uiEvent) => {
     updateOrRemoveUnit()
-    removeHealthListener()
-    removeAggroListener()
   })
   if (arg.vup.kind == 'enemy') {
     units2.appendChild(unitHolder.unitAndArea)
