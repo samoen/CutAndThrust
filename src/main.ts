@@ -637,61 +637,55 @@ listenBus((uiEvent) => {
   refreshPrompt()
 })
 
-let vasdButtons = document.createElement('div')
-vasdButtons.style.marginTop = '7px';
-vasdButtons.style.display = 'flex';
-vasdButtons.style.flexWrap = 'wrap';
-vasdButtons.style.gap = '5px';
-vasdPromptAndButtons.appendChild(vasdButtons)
+let vasButtons = document.createElement('div')
+vasButtons.style.display = 'flex';
+vasButtons.style.flexWrap = 'wrap';
+vasButtons.style.gap = '5px';
+vasdPromptAndButtons.appendChild(vasButtons)
 listenBus(() => {
   updateVasButtons()
 })
 function updateVasButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
-  vasdButtons.replaceChildren()
   let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
-  if (vas) {
-    let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
-    for (let gastc of actionsForSelectedVas) {
-      let vasActionButton = document.createElement('button')
-      vasActionButton.style.paddingInline = '0.7em';
-      vasActionButton.style.paddingBlock = '0.6em';
-      vasActionButton.style.border = 'none';
-      vasActionButton.style.borderRadius = '1px';
-      vasActionButton.style.color = 'white';
-      vasActionButton.style.backgroundColor = 'brown';
-      vasActionButton.textContent = gastc.buttonText
-      vasActionButton.addEventListener('click', () => {
-        if (gastc.pickupItem) {
-          Ui.changeVasLocked(vas.id, false)
-        }
-        Ui.choose(gastc)
-      })
-      vasdButtons.appendChild(vasActionButton)
-    }
-    for (let convoResponse of Ui.selectedVasResponsesToShow2()) {
-      let vasActionButton = document.createElement('button')
-      vasActionButton.style.paddingInline = '0.7em';
-      vasActionButton.style.paddingBlock = '0.6em';
-      vasActionButton.style.border = 'none';
-      vasActionButton.style.borderRadius = '1px';
-      vasActionButton.style.color = 'white';
-      vasActionButton.style.backgroundColor = 'brown';
-      vasActionButton.textContent = convoResponse.responseText
-      vasActionButton.addEventListener('click', () => {
-        Ui.chooseVasResponse(convoResponse)
-        dispatchBus({ uiEvent: { kind: 'ping' } })
-      })
-      vasdButtons.appendChild(vasActionButton)
-    }
-    return
+  if (!vas) return
+  vasButtons.replaceChildren()
+  function vasButtonStyle(element: HTMLElement){
+    element.style.paddingInline = '0.7em';
+    element.style.paddingBlock = '0.6em';
+    element.style.border = 'none';
+    element.style.borderRadius = '1px';
+    element.style.color = 'white';
+    element.style.backgroundColor = 'brown';
+  }
+  let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
+  for (let gastc of actionsForSelectedVas) {
+    let vasActionButton = document.createElement('button')
+    vasActionButton.textContent = gastc.buttonText
+    vasActionButton.addEventListener('click', () => {
+      if (gastc.pickupItem) {
+        Ui.changeVasLocked(vas.id, false)
+      }
+      Ui.choose(gastc)
+    })
+    vasButtons.appendChild(vasActionButton)
+  }
+  for (let convoResponse of Ui.selectedVasResponsesToShow2()) {
+    let vasActionButton = document.createElement('button')
+    vasButtonStyle(vasActionButton)
+    vasActionButton.textContent = convoResponse.responseText
+    vasActionButton.addEventListener('click', () => {
+      Ui.chooseVasResponse(convoResponse)
+      dispatchBus({ uiEvent: { kind: 'ping' } })
+    })
+    vasButtons.appendChild(vasActionButton)
   }
 }
 let itemSlotButtons = document.createElement('div')
 itemSlotButtons.style.paddingTop = '10px'
 listenBus((uiEvent) => {
-    refreshItemSlotButtons()
+  refreshItemSlotButtons()
 })
 function refreshItemSlotButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
