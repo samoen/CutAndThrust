@@ -75,8 +75,8 @@ export function addNewUser(heroName: string): { id: string; player: Player } | u
 			equipItem(player, i.id);
 		});
 		// equipItem(player,'bow')
-		equipItem(player,'bomb')
-		equipItem(player,'club')
+		// equipItem(player,'bomb')
+		// equipItem(player,'club')
 
 	const userId = "me";
 	users.set(userId, player);

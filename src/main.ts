@@ -5,10 +5,16 @@ import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from '
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
 import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
-import type { HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
+import type { EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
 import { getAggroForPlayer } from './enemies'
+import heart from './assets/ui/heart.png';
+import arm from './assets/ui/strong.png';
+import foot from './assets/ui/foot.png';
+import teeth from './assets/ui/teeth.png';
+import brain from './assets/ui/brain.png';
+import shieldHealth from './assets/ui/shield-health.png';
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
@@ -501,29 +507,131 @@ underPortrait.style.overflowWrap = 'break-word';
 selectedPortrait.appendChild(underPortrait)
 
 let selectedRest = document.createElement('div')
-selectedRest.style.flexBasis = '85%';
-selectedRest.style.height = '100%';
-selectedRest.style.padding = '10px';
-selectedDetails.appendChild(selectedRest)
+// selectedRest.style.flexBasis = '85%';
+selectedRest.style.display = 'flex'
+// selectedRest.style.gap = '10px'
+selectedRest.style.height = '100%'
+// selectedRest.style.padding = '10px';
+// selectedDetails.appendChild(selectedRest)
+
+let selectedStats = document.createElement('div')
+selectedStats.style.overflowY = 'auto'
+// selectedStats.style.minWidth = '20vw'
+selectedStats.style.borderLeft = 'none'
+selectedStats.style.color = 'white'
+selectedDetails.appendChild(selectedStats)
+function updateSelectedStats() {
+  selectedStats.replaceChildren()
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == Ui.uiStateYep.lastUnitClicked)
+  let me = undefined
+  if (Ui.uiStateYep.lastUnitClicked == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+    me = Ui.uiStateYep.lastMsgFromServer.yourInfo
+  }
+  if (!me && !enemy) return
+  let ent: EnemyInClient | PlayerInClient | undefined = undefined
+  let str = 0
+  let agi = 0
+  let mind = 0
+  let aggGain = 0
+  let bonusStr = ''
+  let bonusAgi = ''
+  let bonusMind = ''
+  if (me) {
+    ent = me
+    str = me.strength
+    agi = me.agility
+    mind = me.mind
+  }
+  if (enemy) {
+    ent = enemy
+    str = enemy.template.strength
+    agi = enemy.template.agility
+    mind = enemy.template.mind
+    aggGain = enemy.template.aggroGain
+  }
+  if (!ent) return
+  bonusStr = ent.bonusStats.strength ? ` +${ent.bonusStats.strength}` : ''
+  bonusAgi = ent.bonusStats.agility ? ` +${ent.bonusStats.agility}` : ''
+  bonusMind = ent.bonusStats.mind ? ` +${ent.bonusStats.mind}` : ''
+
+  let top = document.createElement('div')
+  top.style.padding = '10px'
+  top.style.display = 'flex'
+  top.style.flexDirection = 'column'
+  selectedStats.appendChild(top)
+
+  let classTitle = document.createElement('div')
+  classTitle.innerText = enemy ? enemy.template.id : me!.class
+  top.appendChild(classTitle)
+
+  function statLineStyle(el: HTMLElement) {
+    el.style.display = 'inline-flex';
+    el.style.gap = '5px';
+    el.style.paddingRight = '5px';
+    el.style.flexDirection = 'row';
+  }
+  let statLineHealth = document.createElement('div')
+  statLineStyle(statLineHealth)
+  top.appendChild(statLineHealth)
+
+  let heartImg = document.createElement('img')
+  heartImg.src = heart
+  statLineHealth.appendChild(heartImg)
+
+  let healthDisplay = document.createElement('div')
+  healthDisplay.innerText = `${ent.maxHealth}`
+  statLineHealth.appendChild(healthDisplay)
+
+  if (str > 0 || bonusStr.length) {
+    let statLineStrength = document.createElement('div')
+    statLineStyle(statLineStrength)
+    top.appendChild(statLineStrength)
+
+    let strImg = document.createElement('img')
+    strImg.src = arm
+    statLineStrength.appendChild(strImg)
+
+    let strDisplay = document.createElement('div')
+    strDisplay.textContent = `${str}${bonusStr}`
+    statLineStrength.appendChild(strDisplay)
+  }
+
+}
+listenBus(() => {
+  updateSelectedStats()
+})
 
 let vasdPromptAndButtons = document.createElement('div')
-vasdPromptAndButtons.style.display = 'flex';
 vasdPromptAndButtons.style.height = '100%';
+vasdPromptAndButtons.style.display = 'flex';
 vasdPromptAndButtons.style.flexDirection = 'column';
+vasdPromptAndButtons.style.gap = '10px'
 vasdPromptAndButtons.style.color = 'white';
 vasdPromptAndButtons.style.overflowY = 'auto';
 vasdPromptAndButtons.style.borderLeft = 'none';
-selectedRest.appendChild(vasdPromptAndButtons)
+vasdPromptAndButtons.style.padding = '10px'
+// selectedDetails.appendChild(vasdPromptAndButtons)
+listenBus(() => {
+  let vasState = Ui.selectedVisualActionSourceState2()
+  if (!vasState) {
+    vasdPromptAndButtons.remove()
+    return
+  }
+  selectedDetails.appendChild(vasdPromptAndButtons)
+})
 
 let vasdPrompt = document.createElement('div')
 vasdPrompt.style.whiteSpace = 'pre-wrap';
 vasdPrompt.style.lineHeight = '17px';
+vasdPromptAndButtons.appendChild(vasdPrompt)
 function refreshPrompt() {
-  vasdPrompt.remove()
+  // vasdPrompt.remove()
   let vasState = Ui.selectedVisualActionSourceState2()
   if (!vasState) return
+  console.log(vasState.currentRetort)
   vasdPrompt.textContent = vasState.currentRetort
-  vasdPromptAndButtons.insertAdjacentElement('afterbegin', vasdPrompt)
+  // vasdPromptAndButtons.insertAdjacentElement('afterbegin', vasdPrompt)
 }
 listenBus((uiEvent) => {
   refreshPrompt()
@@ -535,13 +643,14 @@ vasdButtons.style.display = 'flex';
 vasdButtons.style.flexWrap = 'wrap';
 vasdButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasdButtons)
-
-function refreshActionButtons() {
+listenBus(() => {
+  updateVasButtons()
+})
+function updateVasButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
   vasdButtons.replaceChildren()
   let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
-  // console.log("populate vas actions", vas)
   if (vas) {
     let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
     for (let gastc of actionsForSelectedVas) {
@@ -578,53 +687,62 @@ function refreshActionButtons() {
     }
     return
   }
+}
+let itemSlotButtons = document.createElement('div')
+itemSlotButtons.style.paddingTop = '10px'
+listenBus((uiEvent) => {
+    refreshItemSlotButtons()
+})
+function refreshItemSlotButtons() {
+  if (!Ui.uiStateYep.lastUnitClicked) return
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+
   let meSelected = Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId == Ui.uiStateYep.lastUnitClicked
   let enemy = Ui.uiStateYep.lastMsgFromServer?.enemiesInScene.find(vup => vup.unitId == Ui.uiStateYep.lastUnitClicked)
-  if (enemy || meSelected) {
-    for (let value of Ui.typedInventory()) {
-      // for (let gastc of vup.actionsThatCanTargetMe) {
-      let slotButton = document.createElement('button')
-      slotButton.style.position = 'relative';
-      slotButton.style.border = 'none';
-      slotButton.style.background = 'none';
-      slotButton.style.cursor = 'pointer';
-      let actionsAssociatedWithSelected = Ui.uiStateYep.lastMsgFromServer!.itemActions.filter((a) => a.associateWithUnit == Ui.uiStateYep.lastUnitClicked)
-      let gastc = actionsAssociatedWithSelected.find(a => a.itemId == value.itemState.stats.id)
-      slotButton.addEventListener('click', () => {
-        if (value.acts.length == 1) {
-          let firstAct = value.acts.at(0)
-          if (firstAct) {
-            Ui.choose(firstAct)
-            return
-          }
-        }
-        if (gastc) {
-          Ui.choose(gastc)
+  if (!enemy && !meSelected) {
+    itemSlotButtons.remove()
+    return
+  }
+  selectedDetails.appendChild(itemSlotButtons)
+  itemSlotButtons.replaceChildren()
+  for (let value of Ui.typedInventory()) {
+    // for (let gastc of vup.actionsThatCanTargetMe) {
+    let slotButton = document.createElement('button')
+    slotButton.style.position = 'relative';
+    slotButton.style.border = 'none';
+    slotButton.style.background = 'none';
+    slotButton.style.cursor = 'pointer';
+    let actionsAssociatedWithSelected = Ui.uiStateYep.lastMsgFromServer!.itemActions.filter((a) => a.associateWithUnit == Ui.uiStateYep.lastUnitClicked)
+    let gastc = actionsAssociatedWithSelected.find(a => a.itemId == value.itemState.stats.id)
+    slotButton.addEventListener('click', () => {
+      if (value.acts.length == 1) {
+        let firstAct = value.acts.at(0)
+        if (firstAct) {
+          Ui.choose(firstAct)
           return
         }
-      })
-      vasdButtons.appendChild(slotButton)
-      let slotImg = document.createElement('img')
-      slotImg.draggable = false
-      slotImg.src = value.img
-      slotImg.style.display = 'block';
-      slotImg.style.borderRadius = '10px';
-      if (value.disabled || (!gastc && value.acts.length != 1)) {
-        slotImg.style.opacity = '0.5'
       }
-      slotButton.appendChild(slotImg)
+      if (gastc) {
+        Ui.choose(gastc)
+        return
+      }
+    })
+    itemSlotButtons.appendChild(slotButton)
+    let slotImg = document.createElement('img')
+    slotImg.draggable = false
+    slotImg.src = value.img
+    slotImg.style.display = 'block';
+    slotImg.style.borderRadius = '10px';
+    if (value.disabled || (!gastc && value.acts.length != 1)) {
+      slotImg.style.opacity = '0.5'
     }
+    slotButton.appendChild(slotImg)
   }
 }
-listenBus((uiEvent) => {
-  if (Ui.uiStateYep.lastUnitClicked) {
-    refreshActionButtons()
-  }
-})
 
 let added = addNewUser("my name")
 if (added) {
-  changeScene(added.player, 'soloTrain0')
+  // changeScene(added.player, 'soloTrain0')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
