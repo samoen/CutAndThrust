@@ -14,6 +14,8 @@ import arm from './assets/ui/strong.png';
 import foot from './assets/ui/foot.png';
 import teeth from './assets/ui/teeth.png';
 import brain from './assets/ui/brain.png';
+import lightShield from './assets/ui/light-shield.png';
+import heavyShield from './assets/ui/heavy-shield.png';
 import shieldHealth from './assets/ui/shield-health.png';
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
@@ -563,6 +565,7 @@ function updateSelectedStats() {
 
   let classTitle = document.createElement('div')
   classTitle.innerText = enemy ? enemy.template.id : me!.class
+  classTitle.style.fontWeight = 'bold'
   top.appendChild(classTitle)
 
   function statLineStyle(el: HTMLElement) {
@@ -634,6 +637,51 @@ function updateSelectedStats() {
     let aggroGainDisplay = document.createElement('div')
     aggroGainDisplay.textContent = `${aggGain}`
     statLineAggroGain.appendChild(aggroGainDisplay)
+  }
+  for (let i of ent.inventory) {
+    if (i.stats.excludeFromDetail) continue
+    let itemStatTop = document.createElement('div')
+    itemStatTop.style.display = 'block'
+    top.appendChild(itemStatTop)
+
+    let title = document.createElement('div')
+    title.innerText = i.stats.id
+    title.style.display = 'block'
+    title.style.fontWeight = 'bold'
+    title.style.marginLeft = '3px'
+    top.appendChild(title)
+
+    let stats = document.createElement('div')
+    stats.style.display= 'inline-flex'
+		stats.style.flexDirection= 'column'
+    top.appendChild(stats)
+    if(i.stats.damageReduction){
+      let lightArmorStatline = document.createElement('div')
+      statLineStyle(lightArmorStatline)
+      stats.appendChild(lightArmorStatline)
+
+      let lightArmorImg = document.createElement('img')
+      lightArmorImg.src = lightShield
+      lightArmorStatline.appendChild(lightArmorImg)
+
+      let lightArmorNum = document.createElement('div')
+      lightArmorNum.innerText = `${i.stats.damageReduction}`
+      lightArmorStatline.appendChild(lightArmorNum)
+    }
+    if(i.stats.damageLimit){
+      let heavyArmorStatline = document.createElement('div')
+      statLineStyle(heavyArmorStatline)
+      stats.appendChild(heavyArmorStatline)
+  
+      let heavyArmorImg = document.createElement('img')
+      heavyArmorImg.src = heavyShield
+      heavyArmorStatline.appendChild(heavyArmorImg)
+
+      let heavyArmorNum = document.createElement('div')
+      heavyArmorNum.innerText = `${i.stats.damageReduction}`
+      heavyArmorStatline.appendChild(heavyArmorNum)
+    }
+
   }
 }
 listenBus(() => {
@@ -768,9 +816,9 @@ function refreshItemSlotButtons() {
   }
 }
 
-let added = addNewUser("my name")
+let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain0')
+  changeScene(added.player, 'soloTrain1')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg

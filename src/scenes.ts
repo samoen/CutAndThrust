@@ -229,7 +229,7 @@ const tutorial: Scene = {
 
 const trainingRoom0: Scene = {
 	sceneDataId: `soloTrain0`,
-	displayName: 'Training Room',
+	displayName: 'Training Room 1',
 	landscape: 'bridge',
 	solo: true,
 	setCheckpointOnEnter: true,
@@ -290,7 +290,7 @@ const trainingRoom0: Scene = {
 		},
 		{
 			unitId: 'vasGoTrain1',
-			displayName: 'Training Room',
+			displayName: 'Training Room 2',
 			sprite: 'castle',
 			startsLocked: true,
 			startText: `A sign on the door says: 'Glornak's office'`,
@@ -305,7 +305,7 @@ const trainingRoom0: Scene = {
 };
 const trainingRoom1: Scene = {
 	sceneDataId: `soloTrain1`,
-	displayName: 'Training Room',
+	displayName: 'Training Room 2',
 	landscape: 'bridge',
 	solo: true,
 	setCheckpointOnEnter: true,
@@ -378,7 +378,7 @@ const trainingRoom1: Scene = {
 		},
 		{
 			unitId: 'vasGoTrain2',
-			displayName: 'Training Room',
+			displayName: 'Training Room 3',
 			sprite: 'castle',
 			startsLocked: true,
 			startText: `The sign reads: 'Kill the fire gremlin as soon as possible!'`,
@@ -394,7 +394,7 @@ const trainingRoom1: Scene = {
 
 const trainingRoom2: Scene = {
 	sceneDataId: `soloTrain2`,
-	displayName: 'Training Room',
+	displayName: 'Training Room 3',
 	solo: true,
 	setCheckpointOnEnter: true,
 	healsOnVictory: true,
@@ -461,7 +461,7 @@ const trainingRoom2: Scene = {
 		},
 		{
 			unitId: 'vasGoTrain3',
-			displayName: 'Training Room',
+			displayName: 'Training Room 4',
 			sprite: 'stoneDoor',
 			startText: `The next room looks more like a prison cell than a training room. The bones of previous recruits are strewn about the place..`,
 			actionsWithRequirements: [
@@ -476,7 +476,7 @@ const trainingRoom2: Scene = {
 
 const trainingRoom3: Scene = {
 	sceneDataId: `soloTrain3`,
-	displayName: 'Training Room',
+	displayName: 'Training Room 4',
 	solo: true,
 	setCheckpointOnEnter: true,
 	healsOnVictory: true,
@@ -760,7 +760,7 @@ const throne: Scene = {
 			detect: [
 				{
 					flag: 'killedGoblins',
-					startText: `Word of your deeds has reached the king and he has decided to give you and audience.`,
+					startText: `Word of your deeds has reached the king and he has decided to give you an audience.`,
 					responses: [
 						{
 							responseId: 'thanks',
