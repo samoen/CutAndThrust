@@ -596,7 +596,45 @@ function updateSelectedStats() {
     strDisplay.textContent = `${str}${bonusStr}`
     statLineStrength.appendChild(strDisplay)
   }
+  if (agi > 0 || bonusAgi.length) {
+    let statLineAgi = document.createElement('div')
+    statLineStyle(statLineAgi)
+    top.appendChild(statLineAgi)
 
+    let agiImg = document.createElement('img')
+    agiImg.src = foot
+    statLineAgi.appendChild(agiImg)
+
+    let agiDisplay = document.createElement('div')
+    agiDisplay.textContent = `${agi}${bonusAgi}`
+    statLineAgi.appendChild(agiDisplay)
+  }
+  if (mind > 0 || bonusMind.length) {
+    let statLineMind = document.createElement('div')
+    statLineStyle(statLineMind)
+    top.appendChild(statLineMind)
+
+    let mindImg = document.createElement('img')
+    mindImg.src = brain
+    statLineMind.appendChild(mindImg)
+
+    let mindDisplay = document.createElement('div')
+    mindDisplay.textContent = `${mind}${bonusMind}`
+    statLineMind.appendChild(mindDisplay)
+  }
+  if (enemy) {
+    let statLineAggroGain = document.createElement('div')
+    statLineStyle(statLineAggroGain)
+    top.appendChild(statLineAggroGain)
+
+    let aggroGainImg = document.createElement('img')
+    aggroGainImg.src = teeth
+    statLineAggroGain.appendChild(aggroGainImg)
+
+    let aggroGainDisplay = document.createElement('div')
+    aggroGainDisplay.textContent = `${aggGain}`
+    statLineAggroGain.appendChild(aggroGainDisplay)
+  }
 }
 listenBus(() => {
   updateSelectedStats()
@@ -611,7 +649,6 @@ vasdPromptAndButtons.style.color = 'white';
 vasdPromptAndButtons.style.overflowY = 'auto';
 vasdPromptAndButtons.style.borderLeft = 'none';
 vasdPromptAndButtons.style.padding = '10px'
-// selectedDetails.appendChild(vasdPromptAndButtons)
 listenBus(() => {
   let vasState = Ui.selectedVisualActionSourceState2()
   if (!vasState) {
@@ -626,12 +663,9 @@ vasdPrompt.style.whiteSpace = 'pre-wrap';
 vasdPrompt.style.lineHeight = '17px';
 vasdPromptAndButtons.appendChild(vasdPrompt)
 function refreshPrompt() {
-  // vasdPrompt.remove()
   let vasState = Ui.selectedVisualActionSourceState2()
   if (!vasState) return
-  console.log(vasState.currentRetort)
   vasdPrompt.textContent = vasState.currentRetort
-  // vasdPromptAndButtons.insertAdjacentElement('afterbegin', vasdPrompt)
 }
 listenBus((uiEvent) => {
   refreshPrompt()
@@ -651,7 +685,7 @@ function updateVasButtons() {
   let vas = Ui.uiStateYep.lastMsgFromServer.visualActionSources.find(vas => vas.id == Ui.uiStateYep.lastUnitClicked)
   if (!vas) return
   vasButtons.replaceChildren()
-  function vasButtonStyle(element: HTMLElement){
+  function vasButtonStyle(element: HTMLElement) {
     element.style.paddingInline = '0.7em';
     element.style.paddingBlock = '0.6em';
     element.style.border = 'none';
@@ -662,6 +696,7 @@ function updateVasButtons() {
   let actionsForSelectedVas = Ui.uiStateYep.lastMsgFromServer.vasActions.filter((va) => va.associateWithUnit == Ui.uiStateYep.lastUnitClicked);
   for (let gastc of actionsForSelectedVas) {
     let vasActionButton = document.createElement('button')
+    vasButtonStyle(vasActionButton)
     vasActionButton.textContent = gastc.buttonText
     vasActionButton.addEventListener('click', () => {
       if (gastc.pickupItem) {
@@ -700,7 +735,6 @@ function refreshItemSlotButtons() {
   selectedDetails.appendChild(itemSlotButtons)
   itemSlotButtons.replaceChildren()
   for (let value of Ui.typedInventory()) {
-    // for (let gastc of vup.actionsThatCanTargetMe) {
     let slotButton = document.createElement('button')
     slotButton.style.position = 'relative';
     slotButton.style.border = 'none';
