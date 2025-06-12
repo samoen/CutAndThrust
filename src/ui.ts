@@ -67,9 +67,11 @@ export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
+export const ANIM_DURATION_MS = 500
 export const uiStateYep = {
   lastUnitClicked: undefined as UnitId | undefined,
-  lastMsgFromServer: undefined as MessageFromServer | undefined
+  lastMsgFromServer: undefined as MessageFromServer | undefined,
+  currentAnimIndex: -1,
 }
 
 export function vasesToShow2(): VisualActionSourceInClient[] {
@@ -543,9 +545,15 @@ export function choose(
   updatePlayerActions(player)
   let msg = buildNextMessage(player, player.unitId)
   uiStateYep.lastMsgFromServer = msg
-  syncVisualsToMsg()
-  ensureSelectedUnit()
-  dispatchBus(uiEvents.rerender)
+  // if(uiStateYep.lastMsgFromServer.animations.length < 1){
+  if(true){
+    syncVisualsToMsg()
+    ensureSelectedUnit()
+    dispatchBus(uiEvents.rerender)
+    return
+  }
+  // uiStateYep.currentAnimIndex = 0
+  // dispatchBus(uiEvents.animate)
 }
 
 export function ensureSelectedUnit() {

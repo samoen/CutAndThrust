@@ -23,6 +23,10 @@ import { equipItem } from './items'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
+export const uiEvents = {
+  rerender: 'rerender',
+  animate: 'animate'
+} as const
 export const bus = new EventTarget();
 export function listenBus(uiEvent: UIEvent, fire: () => void): () => void {
   let listener = (event: Event) => {
@@ -41,10 +45,6 @@ export function dispatchBus(uiEvent: UIEvent) {
   }))
 }
 
-export const uiEvents = {
-  rerender: 'rerender',
-  animate: 'animate'
-} as const
 
 export type UIEvent = typeof uiEvents[keyof typeof uiEvents]
 
@@ -122,31 +122,6 @@ bgGrad.style.bottom = '0'
 bgGrad.style.width = '100%'
 bgGrad.style.background = 'linear-gradient(to bottom, transparent 0%, black 90%)'
 bgAndGrad.appendChild(bgGrad)
-
-let applyUnitsStyle = (units: HTMLDivElement) => {
-  units.style.display = 'grid'
-  units.style.rowGap = '2px'
-  units.style.gridTemplateColumns = 'repeat(auto-fit, clamp(120px, 50%, 200px))'
-  units.style.justifyContent = 'center'
-  units.style.zIndex = '1'
-}
-
-
-export let units1 = document.createElement('div')
-applyUnitsStyle(units1)
-visual.appendChild(units1)
-listenBus(uiEvents.rerender, () => {
-  if (!Ui.uiStateYep.lastMsgFromServer) return
-  let playerElement = unitElements.find(ue => ue.unitId == Ui.uiStateYep.lastMsgFromServer!.yourInfo.unitId)
-  if (!playerElement) {
-    putUnit({ vup: { kind: 'player', entity: Ui.uiStateYep.lastMsgFromServer!.yourInfo } })
-  }
-  for (let vup of Ui.uiStateYep.lastMsgFromServer.enemiesInScene) {
-    if (!unitElements.some(ue => ue.unitId == vup.unitId)) {
-      putUnit({ vup: { kind: 'enemy', entity: vup } })
-    }
-  }
-})
 
 function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement } {
   let unitAndArea = document.createElement('div')
@@ -254,27 +229,22 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
 }
 
-export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
-  let unitHolder = createUnitAndArea({ unitId: arg.vup.entity.unitId })
-  if (arg.vup.kind == 'enemy') {
-    unitHolder.nameTag.textContent = arg.vup.entity.displayName
-    unitHolder.heroSprite.src = enemySprites[arg.vup.entity.template.id]
-    unitHolder.heroSprite.style.transform = 'scaleX(-1)'
-    unitHolder.homePlaceholder.style.order = '1'
-  }
-  if (arg.vup.kind == 'player') {
-    unitHolder.nameTag.textContent = arg.vup.entity.displayName
-    unitHolder.heroSprite.src = heroSpriteFromClass(arg.vup.entity.class)
+// listenBus(uiEvents.animate, () => {
+//   if (!Ui.uiStateYep.lastMsgFromServer) return
+//   let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+//   if (!currentAnim) return
+//   if (!currentAnim.takesItem) {
 
-  }
+//   }
+// })
 
+export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLElement, onRemoveBattleBar: () => void } {
   let bars = document.createElement('div')
   bars.style.height = 'clamp(17px, 1vw + 10px, 30px)';
   bars.style.opacity = '0.7';
   bars.style.display = 'flex';
   bars.style.flexDirection = 'column';
   bars.style.alignItems = 'center';
-  unitHolder.visualUnitTop.appendChild(bars)
 
   let healthBar = document.createElement('div')
   healthBar.style.width = '100%'
@@ -287,12 +257,12 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   let healthBarHealth = document.createElement('div')
   function getHpPercent(): number {
     if (!Ui.uiStateYep.lastMsgFromServer) return 0
-    if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+    if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
       if (Ui.uiStateYep.lastMsgFromServer.yourInfo.health > 0) {
         return 100 * (Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth)
       }
     }
-    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.vup.entity.unitId)
+    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
     if (vu) {
       if (vu.health > 0) {
         return 100 * (vu.health / vu.maxHealth)
@@ -309,63 +279,89 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   let removeHealthListener = listenBus(uiEvents.rerender, () => {
     healthBarHealth.style.width = `${getHpPercent()}%`
   })
-  let removeAggroListener = () => { }
-  if (arg.vup.kind == 'enemy') {
-    let aggroBar = document.createElement('div')
-    aggroBar.style.height = '50%';
-    aggroBar.style.borderRadius = '5px';
-    aggroBar.style.backgroundColor = 'black';
-    aggroBar.style.width = '85%';
-    aggroBar.style.border = '2px solid black';
-    bars.appendChild(aggroBar)
 
-    function getMyAggro() {
-      if (!Ui.uiStateYep.lastMsgFromServer) return 0
-      let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.vup.entity.unitId)
-      if (!vu) return 0
-      return vu.myAggro
-    }
-    let aggro = document.createElement('div')
-    aggro.style.width = `${getMyAggro()}%`
-    aggro.style.backgroundColor = 'purple';
-    aggro.style.transition = 'width 0.2s ease-in-out';
-    aggro.style.height = '100%';
-    aggroBar.appendChild(aggro)
-    removeAggroListener = listenBus(uiEvents.rerender, () => {
-      aggro.style.width = `${getMyAggro()}%`
-    })
+  return {
+    bars: bars,
+    onRemoveBattleBar: removeHealthListener
   }
+}
+
+export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) {
+  let unitHolder = createUnitAndArea({ unitId: playerInClient.unitId })
+  unitHolder.nameTag.textContent = playerInClient.displayName
+  unitHolder.heroSprite.src = heroSpriteFromClass(playerInClient.class)
+
+  let battleBar = createBattleBar({ unitId: playerInClient.unitId })
+  unitHolder.visualUnitTop.appendChild(battleBar.bars)
+
+  let updateHero = () => {
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
+    unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
+  }
+  let removeUpdateUnitListener = listenBus(uiEvents.rerender, () => {
+    updateHero()
+  })
+  units1.appendChild(unitHolder.unitAndArea)
+  unitElements.push({ element: unitHolder.unitAndArea, unitId: playerInClient.unitId })
+}
+
+export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
+  let unitHolder = createUnitAndArea({ unitId: enemyInClient.unitId })
+  unitHolder.nameTag.textContent = enemyInClient.displayName
+  unitHolder.heroSprite.src = enemySprites[enemyInClient.template.id]
+  unitHolder.heroSprite.style.transform = 'scaleX(-1)'
+  unitHolder.homePlaceholder.style.order = '1'
+
+  let battleBar = createBattleBar({ unitId: enemyInClient.unitId })
+  unitHolder.visualUnitTop.appendChild(battleBar.bars)
+
+  let removeAggroListener = () => { }
+  let aggroBar = document.createElement('div')
+  aggroBar.style.height = '50%';
+  aggroBar.style.borderRadius = '5px';
+  aggroBar.style.backgroundColor = 'black';
+  aggroBar.style.width = '85%';
+  aggroBar.style.border = '2px solid black';
+  battleBar.bars.appendChild(aggroBar)
+
+  function getMyAggro() {
+    if (!Ui.uiStateYep.lastMsgFromServer) return 0
+    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == enemyInClient.unitId)
+    if (!vu) return 0
+    return vu.myAggro
+  }
+  let aggro = document.createElement('div')
+  aggro.style.width = `${getMyAggro()}%`
+  aggro.style.backgroundColor = 'purple';
+  aggro.style.transition = 'width 0.2s ease-in-out';
+  aggro.style.height = '100%';
+  aggroBar.appendChild(aggro)
+  removeAggroListener = listenBus(uiEvents.rerender, () => {
+    aggro.style.width = `${getMyAggro()}%`
+  })
+
 
   let updateOrRemoveUnit = () => {
     if (!Ui.uiStateYep.lastMsgFromServer) return
-    if (arg.vup.entity.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
-      unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
-      unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
-      return
-    }
-    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(eic => eic.unitId == arg.vup.entity.unitId)
+    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(eic => eic.unitId == enemyInClient.unitId)
     if (enemy) {
       unitHolder.heroSprite.src = enemySprites[enemy.template.id]
       unitHolder.nameTag.textContent = enemy.displayName
       return
     }
     removeUpdateUnitListener()
-    removeHealthListener()
+    battleBar.onRemoveBattleBar()
     removeAggroListener()
     unitHolder.unitAndArea.remove()
     unitHolder.onRemove()
-    unitElements = unitElements.filter(ue => ue.unitId != arg.vup.entity.unitId)
+    unitElements = unitElements.filter(ue => ue.unitId != enemyInClient.unitId)
   }
   let removeUpdateUnitListener = listenBus(uiEvents.rerender, () => {
     updateOrRemoveUnit()
   })
-  if (arg.vup.kind == 'enemy') {
-    units2.appendChild(unitHolder.unitAndArea)
-  }
-  if (arg.vup.kind == 'player') {
-    units1.appendChild(unitHolder.unitAndArea)
-  }
-  unitElements.push({ element: unitHolder.unitAndArea, unitId: arg.vup.entity.unitId })
+  units2.appendChild(unitHolder.unitAndArea)
+  unitElements.push({ element: unitHolder.unitAndArea, unitId: enemyInClient.unitId })
 }
 
 export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
@@ -403,21 +399,40 @@ centerPlaceHolder.style.left = '50%'
 // centerPlaceHolder.style.backgroundColor = 'blue'
 visual.appendChild(centerPlaceHolder)
 
+let applyUnitsStyle = (units: HTMLDivElement) => {
+  units.style.display = 'grid'
+  units.style.rowGap = '2px'
+  units.style.gridTemplateColumns = 'repeat(auto-fit, clamp(120px, 50%, 200px))'
+  units.style.justifyContent = 'center'
+  units.style.zIndex = '1'
+}
+
+
+export let units1 = document.createElement('div')
+applyUnitsStyle(units1)
+visual.appendChild(units1)
+
 let units2 = document.createElement('div')
-// units2.style.backgroundColor = 'red'
 applyUnitsStyle(units2)
 visual.appendChild(units2)
-function putMissingVases() {
+
+listenBus(uiEvents.rerender, () => {
   for (let uiVas of Ui.vasesToShow2()) {
     if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
       putVas({ uiVas: uiVas })
     }
   }
-}
+})
 
 listenBus(uiEvents.rerender, () => {
-  putMissingVases()
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  for (let enemy of Ui.uiStateYep.lastMsgFromServer.enemiesInScene) {
+    if (!unitElements.some(ue => ue.unitId == enemy.unitId)) {
+      putEnemy({ enemyInClient: enemy })
+    }
+  }
 })
+
 let selectedDetails = document.createElement('div')
 selectedDetails.style.backgroundRepeat = 'no-repeat';
 selectedDetails.style.backgroundSize = 'calc(max(100%, 700px)) 100%';
@@ -887,6 +902,7 @@ if (added) {
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
+  putHero({ playerInClient: Ui.uiStateYep.lastMsgFromServer!.yourInfo })
   Ui.syncVisualsToMsg()
   Ui.ensureSelectedUnit()
   dispatchBus(uiEvents.rerender)
