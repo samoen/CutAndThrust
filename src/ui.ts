@@ -18,16 +18,6 @@ import { dispatchBus, uiEvents } from './main';
 
 type HeroSpecificEnemyState = { hName: HeroName; agg: number; sts: StatusState[] };
 
-export type HeroOrEnemy =
-  | {
-    kind: 'enemy';
-    entity: EnemyInClient;
-  }
-  | {
-    kind: 'player';
-    entity: PlayerInClient;
-  };
-
 export type UnitDetails =
   | {
     kind: 'enemy';
@@ -67,7 +57,7 @@ export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
-export const ANIM_DURATION_MS = 500
+export const animationStepDuration = 1000
 export const uiStateYep = {
   lastUnitClicked: undefined as UnitId | undefined,
   lastMsgFromServer: undefined as MessageFromServer | undefined,
@@ -524,7 +514,7 @@ export function handlePutsStatuses(anim: BattleAnimation) {
   }
 }
 
-export function choose(
+export async function choose(
   chosen: GameActionSentToClient
 ) {
   const player = users.get("me");
@@ -545,15 +535,44 @@ export function choose(
   updatePlayerActions(player)
   let msg = buildNextMessage(player, player.unitId)
   uiStateYep.lastMsgFromServer = msg
-  // if(uiStateYep.lastMsgFromServer.animations.length < 1){
-  if(true){
-    syncVisualsToMsg()
-    ensureSelectedUnit()
-    dispatchBus(uiEvents.rerender)
-    return
+  let animsLen = uiStateYep.lastMsgFromServer.animations.length
+  // console.log('looping anims', uiStateYep.lastMsgFromServer.animations)
+  for (let i = 0; i < animsLen; i++) {
+    let anim = uiStateYep.lastMsgFromServer.animations.at(i)
+    if (!anim) continue
+    if (!anim.takesItem) continue
+    uiStateYep.currentAnimIndex = i
+    dispatchBus(uiEvents.animate)
+    await waitAnimStep()
   }
-  // uiStateYep.currentAnimIndex = 0
-  // dispatchBus(uiEvents.animate)
+  syncVisualsToMsg()
+  ensureSelectedUnit()
+  dispatchBus(uiEvents.rerender)
+}
+export async function waitAnimStep(durationModifier: number = 1) {
+  let promRes = newPromWithRes()
+  setTimeout(promRes.resolve, animationStepDuration * durationModifier)
+  await promRes.prom,
+    await nextAnimFrame()
+}
+
+export async function nextAnimFrame() {
+  let promRes = newPromWithRes()
+  requestAnimationFrame(promRes.resolve)
+  await promRes.prom
+}
+
+export type PromWithRes = { prom: Promise<void>, resolve: () => void }
+
+export function newPromWithRes(): PromWithRes {
+  let resolve: (() => void) = () => { }
+  let prom = new Promise<void>((r) => {
+    resolve = r
+  })
+  return {
+    prom,
+    resolve,
+  }
 }
 
 export function ensureSelectedUnit() {

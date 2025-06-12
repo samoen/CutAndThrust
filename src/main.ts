@@ -229,15 +229,6 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
 }
 
-// listenBus(uiEvents.animate, () => {
-//   if (!Ui.uiStateYep.lastMsgFromServer) return
-//   let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
-//   if (!currentAnim) return
-//   if (!currentAnim.takesItem) {
-
-//   }
-// })
-
 export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLElement, onRemoveBattleBar: () => void } {
   let bars = document.createElement('div')
   bars.style.height = 'clamp(17px, 1vw + 10px, 30px)';
@@ -299,8 +290,28 @@ export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) 
     unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
     unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
   }
-  let removeUpdateUnitListener = listenBus(uiEvents.rerender, () => {
+  listenBus(uiEvents.rerender, () => {
     updateHero()
+  })
+
+  // animate to pick up item
+  listenBus(uiEvents.animate, async () => {
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+    if (!currentAnim) return
+    if (!currentAnim.takesItem) return
+    let destination = vasElements.find(ve => ve.vasId == currentAnim.animateTo)
+    if (!destination) return
+
+    let elemToAnimate = unitHolder.visualUnitTop
+    const { top: top1, left: left1 } = destination.element.getBoundingClientRect()
+    const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
+    let topDiff = top1 - top2
+    let leftDiff = left1 - left2
+    elemToAnimate.style.transition = `transform ${Ui.animationStepDuration / 2}ms ease`;
+    elemToAnimate.style.transform = `translate(${leftDiff}px, ${topDiff}px)`
+    await Ui.waitAnimStep(0.5)
+    elemToAnimate.style.transform = 'none'
   })
   units1.appendChild(unitHolder.unitAndArea)
   unitElements.push({ element: unitHolder.unitAndArea, unitId: playerInClient.unitId })
@@ -372,20 +383,33 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   unitHolder.homePlaceholder.style.order = '1'
   units2.appendChild(unitHolder.unitAndArea)
   vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id })
-  let onRemove = () => { }
-  let updateOrRemoveVas = () => {
+
+  function updateOrRemoveVas() {
     let vas = Ui.vasesToShow2().find(vas => vas.id == arg.uiVas.id)
     if (vas) {
       unitHolder.heroSprite.src = anySprites[vas.sprite]
       unitHolder.nameTag.textContent = vas.displayName
     } else {
-      onRemove()
+      removeUpdateListener()
+      removePickedUpListener()
       unitHolder.onRemove()
       unitHolder.unitAndArea.remove()
       vasElements = vasElements.filter(ve => ve.vasId != arg.uiVas.id)
     }
   }
-  onRemove = listenBus(uiEvents.rerender, () => {
+  let removeUpdateListener = listenBus(uiEvents.rerender, () => {
+    updateOrRemoveVas()
+  })
+
+  // Item dissapears when picked up
+  let removePickedUpListener = listenBus(uiEvents.animate, async () => {
+    if (!Ui.uiStateYep.lastMsgFromServer) return
+    let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+    if (!currentAnim) return
+    if (!currentAnim.takesItem) return
+    if (currentAnim.animateTo !== arg.uiVas.id) return
+    await Ui.waitAnimStep(0.5)
+    Ui.changeVasLocked(arg.uiVas.id, false)
     updateOrRemoveVas()
   })
 }
@@ -410,6 +434,7 @@ let applyUnitsStyle = (units: HTMLDivElement) => {
 
 export let units1 = document.createElement('div')
 applyUnitsStyle(units1)
+units1.style.position = 'relative'
 visual.appendChild(units1)
 
 let units2 = document.createElement('div')
@@ -801,9 +826,6 @@ function updateVasButtons() {
     vasButtonStyle(vasActionButton)
     vasActionButton.textContent = gastc.buttonText
     vasActionButton.addEventListener('click', () => {
-      if (gastc.pickupItem) {
-        Ui.changeVasLocked(vas.id, false)
-      }
       Ui.choose(gastc)
     })
     vasButtons.appendChild(vasActionButton)
@@ -897,7 +919,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain2')
+  changeScene(added.player, 'soloTrain0')
   // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
