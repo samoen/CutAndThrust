@@ -14,7 +14,7 @@ import {
   heroSpriteFromClass
 } from './assets';
 import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from './utils';
-import { dispatchBus } from './main';
+import { dispatchBus, uiEvents } from './main';
 
 type HeroSpecificEnemyState = { hName: HeroName; agg: number; sts: StatusState[] };
 
@@ -172,8 +172,8 @@ export function checkSelectedUnitValid(): UnitId | undefined {
     const vasAt = vasesToShow2().find((v) => v.id == uiStateYep.lastUnitClicked);
     if (vasAt) return uiStateYep.lastUnitClicked
   }
+
   // if last unit clicked not valid, fall back to first enemy
-  
   const firstEnemy = uiStateYep.lastMsgFromServer.enemiesInScene.at(0)
   if (firstEnemy) return firstEnemy.unitId
 
@@ -545,11 +545,11 @@ export function choose(
   uiStateYep.lastMsgFromServer = msg
   syncVisualsToMsg()
   ensureSelectedUnit()
-  dispatchBus({ uiEvent: { kind: 'ping' } })
+  dispatchBus(uiEvents.rerender)
 }
 
 export function ensureSelectedUnit() {
   let validToBeSelected = checkSelectedUnitValid()
-  if(!validToBeSelected)return
+  if (!validToBeSelected) return
   uiStateYep.lastUnitClicked = validToBeSelected
 }

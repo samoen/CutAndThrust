@@ -24,29 +24,29 @@ import { equipItem } from './items'
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
 export const bus = new EventTarget();
-export function listenBus(fire: (uiEvent: UIEvent) => void): () => void {
+export function listenBus(uiEvent: UIEvent, fire: () => void): () => void {
   let listener = (event: Event) => {
-    const customEvent = event as CustomEvent<UIEvent>;
-    let msg: UIEvent = customEvent.detail
-    fire(msg)
+    // const customEvent = event as CustomEvent<UIEvent>;
+    // let msg: UIEvent = customEvent.detail
+    fire()
   }
-  bus.addEventListener('bus', listener)
+  bus.addEventListener(uiEvent, listener)
   return () => {
-    bus.removeEventListener('bus', listener)
+    bus.removeEventListener(uiEvent, listener)
   }
 }
-export function dispatchBus(arg: { uiEvent: UIEvent }) {
-  bus.dispatchEvent(new CustomEvent('bus', {
-    detail: arg.uiEvent
+export function dispatchBus(uiEvent: UIEvent) {
+  bus.dispatchEvent(new CustomEvent(uiEvent, {
+    detail: {}
   }))
 }
 
-export type UIEvent = {
-  kind: 'visual-thing-selected'
-  unitId: UnitId
-} | {
-  kind: 'scene-reset' | 'ping' | 'response-chosen' | 'rerender'
-}
+export const uiEvents = {
+  rerender: 'rerender',
+  animate: 'animate'
+} as const
+
+export type UIEvent = typeof uiEvents[keyof typeof uiEvents]
 
 export let unitElements: { element: HTMLElement, unitId: UnitId }[] = []
 export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId }[] = []
@@ -75,8 +75,7 @@ yourSceneLabel.style.borderTopWidth = '1px'
 yourSceneLabel.style.borderLeftWidth = '1px'
 yourSceneLabel.style.color = 'brown'
 yourSceneLabel.style.backgroundColor = 'beige'
-listenBus((uiEvent) => {
-  if (uiEvent.kind != 'ping') return
+listenBus(uiEvents.rerender, () => {
   if (!Ui.uiStateYep.lastMsgFromServer) return
   yourSceneLabel.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.currentSceneDisplay
 })
@@ -110,8 +109,7 @@ imageBackground.appendChild(bgAndGrad)
 export let imageBackgroundImg = document.createElement('img')
 imageBackgroundImg.draggable = false
 imageBackgroundImg.style.minWidth = '100vw'
-listenBus((uiEvent) => {
-  if (uiEvent.kind != 'ping') return
+listenBus(uiEvents.rerender, () => {
   if (!Ui.uiStateYep.lastMsgFromServer?.landscape) return
   imageBackgroundImg.src = getLandscape(Ui.uiStateYep.lastMsgFromServer.landscape)
 })
@@ -137,8 +135,7 @@ let applyUnitsStyle = (units: HTMLDivElement) => {
 export let units1 = document.createElement('div')
 applyUnitsStyle(units1)
 visual.appendChild(units1)
-listenBus((uiEvent) => {
-  if (uiEvent.kind != 'ping') return
+listenBus(uiEvents.rerender, () => {
   if (!Ui.uiStateYep.lastMsgFromServer) return
   let playerElement = unitElements.find(ue => ue.unitId == Ui.uiStateYep.lastMsgFromServer!.yourInfo.unitId)
   if (!playerElement) {
@@ -212,7 +209,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     }
   }
   updateStatuses()
-  let removeStatusListen = listenBus(() => {
+  let removeStatusListen = listenBus(uiEvents.rerender, () => {
     updateStatuses()
   })
 
@@ -240,13 +237,13 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     }
   }
   indicateSelected()
-  let removeSelectedListener = listenBus((uiEvent) => {
+  let removeSelectedListener = listenBus(uiEvents.rerender, () => {
     indicateSelected()
   })
 
   homePlaceholder.addEventListener('click', () => {
     Ui.uiStateYep.lastUnitClicked = arg.unitId
-    dispatchBus({ uiEvent: { kind: 'ping' } })
+    dispatchBus(uiEvents.rerender)
   })
 
   let onRemove = () => {
@@ -309,7 +306,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
   healthBarHealth.style.transition = 'width 0.2s ease-in-out'
   healthBarHealth.style.height = '100%'
   healthBar.appendChild(healthBarHealth)
-  let removeHealthListener = listenBus((uiEvent) => {
+  let removeHealthListener = listenBus(uiEvents.rerender, () => {
     healthBarHealth.style.width = `${getHpPercent()}%`
   })
   let removeAggroListener = () => { }
@@ -334,7 +331,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
     aggro.style.transition = 'width 0.2s ease-in-out';
     aggro.style.height = '100%';
     aggroBar.appendChild(aggro)
-    removeAggroListener = listenBus(() => {
+    removeAggroListener = listenBus(uiEvents.rerender, () => {
       aggro.style.width = `${getMyAggro()}%`
     })
   }
@@ -359,7 +356,7 @@ export function putUnit(arg: { vup: Ui.HeroOrEnemy }) {
     unitHolder.onRemove()
     unitElements = unitElements.filter(ue => ue.unitId != arg.vup.entity.unitId)
   }
-  let removeUpdateUnitListener = listenBus((uiEvent) => {
+  let removeUpdateUnitListener = listenBus(uiEvents.rerender, () => {
     updateOrRemoveUnit()
   })
   if (arg.vup.kind == 'enemy') {
@@ -392,7 +389,7 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
       vasElements = vasElements.filter(ve => ve.vasId != arg.uiVas.id)
     }
   }
-  onRemove = listenBus((uiEvent) => {
+  onRemove = listenBus(uiEvents.rerender, () => {
     updateOrRemoveVas()
   })
 }
@@ -418,7 +415,7 @@ function putMissingVases() {
   }
 }
 
-listenBus((uiEvent) => {
+listenBus(uiEvents.rerender, () => {
   putMissingVases()
 })
 let selectedDetails = document.createElement('div')
@@ -458,7 +455,7 @@ portrait.addEventListener('click', () => {
   if (!vasPortraitClicked) return
   Ui.resetSceneConvos(vasPortraitClicked.scene);
   Ui.ensureSelectedUnit()
-  dispatchBus({ uiEvent: { kind: 'ping' } })
+  dispatchBus(uiEvents.rerender)
 })
 selectedPortrait.appendChild(portrait)
 
@@ -469,7 +466,7 @@ portraitImg.style.height = '100%';
 portraitImg.style.width = '100%';
 portraitImg.style.objectFit = 'cover';
 portrait.appendChild(portraitImg)
-listenBus((uiEvent) => {
+listenBus(uiEvents.rerender, () => {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
   if (Ui.uiStateYep.lastUnitClicked == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
@@ -726,7 +723,7 @@ function updateSelectedStats() {
 
   }
 }
-listenBus(() => {
+listenBus(uiEvents.rerender, () => {
   updateSelectedStats()
 })
 
@@ -739,7 +736,7 @@ vasdPromptAndButtons.style.color = 'white';
 vasdPromptAndButtons.style.overflowY = 'auto';
 vasdPromptAndButtons.style.borderLeft = 'none';
 vasdPromptAndButtons.style.padding = '10px'
-listenBus(() => {
+listenBus(uiEvents.rerender, () => {
   let vasState = Ui.selectedVisualActionSourceState2()
   if (!vasState) {
     vasdPromptAndButtons.remove()
@@ -757,7 +754,7 @@ function refreshPrompt() {
   if (!vasState) return
   vasdPrompt.textContent = vasState.currentRetort
 }
-listenBus((uiEvent) => {
+listenBus(uiEvents.rerender, () => {
   refreshPrompt()
 })
 
@@ -766,7 +763,7 @@ vasButtons.style.display = 'flex';
 vasButtons.style.flexWrap = 'wrap';
 vasButtons.style.gap = '5px';
 vasdPromptAndButtons.appendChild(vasButtons)
-listenBus(() => {
+listenBus(uiEvents.rerender, () => {
   updateVasButtons()
 })
 function updateVasButtons() {
@@ -802,14 +799,14 @@ function updateVasButtons() {
     vasActionButton.textContent = convoResponse.responseText
     vasActionButton.addEventListener('click', () => {
       Ui.chooseVasResponse(convoResponse)
-      dispatchBus({ uiEvent: { kind: 'ping' } })
+      dispatchBus(uiEvents.rerender)
     })
     vasButtons.appendChild(vasActionButton)
   }
 }
 let itemSlotButtons = document.createElement('div')
 itemSlotButtons.style.paddingTop = '10px'
-listenBus((uiEvent) => {
+listenBus(uiEvents.rerender, () => {
   refreshItemSlotButtons()
 })
 function refreshItemSlotButtons() {
@@ -885,14 +882,14 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain1')
+  // changeScene(added.player, 'soloTrain2')
   // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
   Ui.syncVisualsToMsg()
   Ui.ensureSelectedUnit()
-  dispatchBus({ uiEvent: { kind: 'ping' } })
+  dispatchBus(uiEvents.rerender)
 }
 
 
