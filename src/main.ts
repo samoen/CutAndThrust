@@ -17,6 +17,7 @@ import brain from './assets/ui/brain.png';
 import lightShield from './assets/ui/light-shield.png';
 import heavyShield from './assets/ui/heavy-shield.png';
 import shieldHealth from './assets/ui/shield-health.png';
+import { equipItem } from './items'
 
 document.querySelector<HTMLDivElement>('#loading')!.remove()
 
@@ -652,10 +653,10 @@ function updateSelectedStats() {
     top.appendChild(title)
 
     let stats = document.createElement('div')
-    stats.style.display= 'inline-flex'
-		stats.style.flexDirection= 'column'
+    stats.style.display = 'inline-flex'
+    stats.style.flexDirection = 'column'
     top.appendChild(stats)
-    if(i.stats.damageReduction){
+    if (i.stats.damageReduction) {
       let lightArmorStatline = document.createElement('div')
       statLineStyle(lightArmorStatline)
       stats.appendChild(lightArmorStatline)
@@ -668,11 +669,11 @@ function updateSelectedStats() {
       lightArmorNum.innerText = `${i.stats.damageReduction}`
       lightArmorStatline.appendChild(lightArmorNum)
     }
-    if(i.stats.damageLimit){
+    if (i.stats.damageLimit) {
       let heavyArmorStatline = document.createElement('div')
       statLineStyle(heavyArmorStatline)
       stats.appendChild(heavyArmorStatline)
-  
+
       let heavyArmorImg = document.createElement('img')
       heavyArmorImg.src = heavyShield
       heavyArmorStatline.appendChild(heavyArmorImg)
@@ -804,6 +805,7 @@ function refreshItemSlotButtons() {
       }
     })
     itemSlotButtons.appendChild(slotButton)
+
     let slotImg = document.createElement('img')
     slotImg.draggable = false
     slotImg.src = value.img
@@ -813,12 +815,37 @@ function refreshItemSlotButtons() {
       slotImg.style.opacity = '0.5'
     }
     slotButton.appendChild(slotImg)
+
+    let slotCounter = document.createElement('span')
+    slotCounter.style.position = 'absolute'
+    slotCounter.style.top = '50%'
+    slotCounter.style.left = '50%'
+    slotCounter.style.transform = 'translate(-50%, -50%)'
+    slotCounter.style.textAlign = 'center'
+    slotCounter.style.fontSize = '30px'
+    slotCounter.style.zIndex = '2'
+    slotCounter.style.color = 'wheat'
+    slotCounter.innerText = value.overlayNumber ?? ''
+    slotButton.appendChild(slotCounter)
+
+    let slotStockDots = document.createElement('span')
+    slotStockDots.style.zIndex = '2'
+    slotStockDots.style.color = 'white'
+    slotStockDots.style.position = 'absolute'
+    slotStockDots.style.top = '0'
+    slotStockDots.style.left = '3px'
+    slotStockDots.style.fontSize = '30px'
+    slotStockDots.style.fontWeight = 'bold'
+    slotStockDots.style.lineHeight = '1px'
+    slotStockDots.innerText = value.dots
+    slotButton.appendChild(slotStockDots)
   }
 }
 
 let added = addNewUser("You")
 if (added) {
-  changeScene(added.player, 'soloTrain1')
+  // changeScene(added.player, 'soloTrain1')
+  // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
