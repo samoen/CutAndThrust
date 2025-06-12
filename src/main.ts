@@ -8,9 +8,11 @@ import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, g
 import type { EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
-import { getAggroForPlayer } from './enemies'
 import heart from './assets/ui/heart.png';
+import arrows from './assets/ui/arrows.png';
+import footy from './assets/ui/foot.png';
 import arm from './assets/ui/strong.png';
+import sword from './assets/ui/sword.png';
 import foot from './assets/ui/foot.png';
 import teeth from './assets/ui/teeth.png';
 import brain from './assets/ui/brain.png';
@@ -679,8 +681,47 @@ function updateSelectedStats() {
       heavyArmorStatline.appendChild(heavyArmorImg)
 
       let heavyArmorNum = document.createElement('div')
-      heavyArmorNum.innerText = `${i.stats.damageReduction}`
+      heavyArmorNum.innerText = `${i.stats.damageLimit}`
       heavyArmorStatline.appendChild(heavyArmorNum)
+    }
+    if (i.stats.damages) {
+      let damagesStatline = document.createElement('div')
+      statLineStyle(damagesStatline)
+      stats.appendChild(damagesStatline)
+
+      let damagesImg = document.createElement('img')
+      damagesImg.src = sword
+      damagesStatline.appendChild(damagesImg)
+
+      let damagesNum = document.createElement('div')
+      damagesNum.innerText = `${i.stats.damages.baseDmg}`
+      damagesStatline.appendChild(damagesNum)
+    }
+    if (i.stats.damages && i.stats.damages.strikes > 1) {
+      let strikesStatline = document.createElement('div')
+      statLineStyle(strikesStatline)
+      stats.appendChild(strikesStatline)
+
+      let strikesImg = document.createElement('img')
+      strikesImg.src = arrows
+      strikesStatline.appendChild(strikesImg)
+
+      let damagesNum = document.createElement('div')
+      damagesNum.innerText = `${i.stats.damages.strikes}`
+      strikesStatline.appendChild(damagesNum)
+    }
+    if (i.stats.speed && i.stats.speed > 0) {
+      let speedStatline = document.createElement('div')
+      statLineStyle(speedStatline)
+      stats.appendChild(speedStatline)
+
+      let speedImg = document.createElement('img')
+      speedImg.src = footy
+      speedStatline.appendChild(speedImg)
+
+      let speedNum = document.createElement('div')
+      speedNum.innerText = `${i.stats.speed}`
+      speedStatline.appendChild(speedNum)
     }
 
   }
