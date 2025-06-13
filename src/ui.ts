@@ -57,7 +57,10 @@ export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
-export const animationStepDuration = 1000
+export const animationStepDuration = 500
+export const animateToDurationMod = 2
+export const strikeDurationMod = 1
+
 export const uiStateYep = {
   lastUnitClicked: undefined as UnitId | undefined,
   lastMsgFromServer: undefined as MessageFromServer | undefined,
@@ -536,19 +539,46 @@ export async function choose(
   let msg = buildNextMessage(player, player.unitId)
   uiStateYep.lastMsgFromServer = msg
   let animsLen = uiStateYep.lastMsgFromServer.animations.length
-  // console.log('looping anims', uiStateYep.lastMsgFromServer.animations)
+  console.log('looping anims', uiStateYep.lastMsgFromServer.animations)
   for (let i = 0; i < animsLen; i++) {
     let anim = uiStateYep.lastMsgFromServer.animations.at(i)
     if (!anim) continue
-    if (!anim.takesItem) continue
+    if (!(anim.animateTo)) continue
+    if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
+    // console.log('anim to',anim.animateTo)
+    // if(!(anim.alsoDamages || anim.takesItem))continue
     uiStateYep.currentAnimIndex = i
     dispatchBus(uiEvents.animate)
-    await waitAnimStep()
+    let durationModifier = 0
+
+    // there and back again
+    if(anim.animateTo && anim.behavior.kind != 'travel'){
+      durationModifier+= animateToDurationMod*2
+    }
+    if(anim.behavior.kind == 'travel'){
+      durationModifier += animateToDurationMod
+    }
+    // if(anim.behavior.kind == 'missile')
+    // for each strike
+    if(anim.alsoDamages){
+      let firstDmged = anim.alsoDamages.at(0)
+      if(firstDmged){
+        let strikes = firstDmged.amount.length * strikeDurationMod
+        console.log(strikes)
+        durationModifier += firstDmged.amount.length * strikeDurationMod
+      }
+    }
+    console.log('full step anim dur', durationModifier)
+    await waitAnimStep(durationModifier)
   }
+  
+  // await waitAnimStep(1)
   syncVisualsToMsg()
   ensureSelectedUnit()
   dispatchBus(uiEvents.rerender)
 }
+
+
 export async function waitAnimStep(durationModifier: number = 1) {
   let promRes = newPromWithRes()
   setTimeout(promRes.resolve, animationStepDuration * durationModifier)

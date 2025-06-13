@@ -5,7 +5,7 @@ import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from '
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
 import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
-import type { EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
+import type { BattleAnimation, EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
 import sidebar from './assets/ui/sidebar.png'
 import minimap from './assets/ui/minimap.png'
 import heart from './assets/ui/heart.png';
@@ -110,7 +110,7 @@ export let imageBackgroundImg = document.createElement('img')
 imageBackgroundImg.draggable = false
 imageBackgroundImg.style.minWidth = '100vw'
 listenBus(uiEvents.rerender, () => {
-  if (!Ui.uiStateYep.lastMsgFromServer?.landscape) return
+  if (!Ui.uiStateYep.lastMsgFromServer) return
   imageBackgroundImg.src = getLandscape(Ui.uiStateYep.lastMsgFromServer.landscape)
 })
 bgAndGrad.appendChild(imageBackgroundImg)
@@ -246,35 +246,72 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   healthBar.style.marginBottom = '1px'
   bars.appendChild(healthBar)
   let healthBarHealth = document.createElement('div')
-  function getHpPercent(): number {
-    if (!Ui.uiStateYep.lastMsgFromServer) return 0
+  function getMsgHps():{hp:number,maxHp:number}{
+    if (!Ui.uiStateYep.lastMsgFromServer) return {hp:0,maxHp:1}
     if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
-      if (Ui.uiStateYep.lastMsgFromServer.yourInfo.health > 0) {
-        return 100 * (Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth)
-      }
+        return {hp:Ui.uiStateYep.lastMsgFromServer.yourInfo.health,maxHp: Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth}
     }
     let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
     if (vu) {
-      if (vu.health > 0) {
-        return 100 * (vu.health / vu.maxHealth)
-      }
+      return {hp:vu.health,maxHp:vu.maxHealth}
     }
-    return 0
+    return {hp:0,maxHp:1}
   }
-  healthBarHealth.style.width = `${getHpPercent()}%`
+  function getHpPercent(currentHp:number): number {
+    if(currentHp < 1)return 0
+    let msgHps = getMsgHps()
+    return 100 * (currentHp / msgHps.maxHp)
+  }
+  let lastSyncHp = 0
+  function sync(){
+    lastSyncHp = getMsgHps().hp
+    healthBarHealth.style.width = `${getHpPercent(lastSyncHp)}%`
+  }
+  sync()
   healthBarHealth.style.borderRadius = '5px'
   healthBarHealth.style.backgroundColor = 'green';
   healthBarHealth.style.transition = 'width 0.2s ease-in-out'
   healthBarHealth.style.height = '100%'
   healthBar.appendChild(healthBarHealth)
   let removeHealthListener = listenBus(uiEvents.rerender, () => {
-    healthBarHealth.style.width = `${getHpPercent()}%`
+    sync()
+  })
+  let removeStrikesListener = listenBus(uiEvents.animate,async()=>{
+    let currentAnim = getCurrentAnim()
+    if(currentAnim?.behavior.kind != 'melee')return
+    if(!currentAnim?.alsoDamages)return
+    let dmgAnimForMe = currentAnim.alsoDamages.find(ad=>ad.target == unitId)
+    if(!dmgAnimForMe)return
+    await Ui.waitAnimStep(Ui.animateToDurationMod)
+    let runningHp = lastSyncHp
+    // console.log('bar taking strikes', dmgAnimForMe.amount, 'with msgs hps', getMsgHps())
+    for(let amt of dmgAnimForMe.amount){
+      runningHp -= amt
+      let percent = getHpPercent(runningHp)
+      console.log('bar takes strike to percent', percent, 'cuz running hp', runningHp)
+      healthBarHealth.style.width = `${percent}%`
+      await Ui.waitAnimStep(Ui.strikeDurationMod)
+    }
   })
 
+  let onRemoveBattleBar = ()=>{
+    removeHealthListener()
+    removeStrikesListener()
+  }
   return {
     bars: bars,
-    onRemoveBattleBar: removeHealthListener
+    onRemoveBattleBar: onRemoveBattleBar,
   }
+}
+
+async function animateUnitToUnit({elemToAnimate,destination}:{elemToAnimate:HTMLElement,destination:HTMLElement}){
+    const { top: top1, left: left1 } = destination.getBoundingClientRect()
+    const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
+    let topDiff = top1 - top2
+    let leftDiff = left1 - left2
+    elemToAnimate.style.transition = `transform ${Ui.animationStepDuration * Ui.animateToDurationMod}ms ease`;
+    elemToAnimate.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
+    await Ui.waitAnimStep(Ui.animateToDurationMod)
 }
 
 export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) {
@@ -289,32 +326,72 @@ export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) 
     if (!Ui.uiStateYep.lastMsgFromServer) return
     unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
     unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
+    unitHolder.visualUnitTop.style.transform = 'none'
+    unitHolder.visualUnitTop.style.transition = 'none'
   }
   listenBus(uiEvents.rerender, () => {
     updateHero()
   })
 
   // animate to pick up item
+  // listenBus(uiEvents.animate, async () => {
+  //   if (!Ui.uiStateYep.lastMsgFromServer) return
+  //   let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+  //   if (!currentAnim) return
+  //   if(currentAnim.source !== Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId)return
+  //   if (!currentAnim.takesItem) return
+  //   let destination = vasElements.find(ve => ve.vasId == currentAnim.animateTo)
+  //   if (!destination) return
+  //   await animateUnitToUnit({elemToAnimate: unitHolder.visualUnitTop, destination:destination.element})
+  //   unitHolder.visualUnitTop.style.transform = 'none'
+  // })
+  
+  // animate melee
   listenBus(uiEvents.animate, async () => {
-    if (!Ui.uiStateYep.lastMsgFromServer) return
-    let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+    console.log('animate hero')
+    if(!Ui.uiStateYep.lastMsgFromServer)return
+    let currentAnim = getCurrentAnim()
     if (!currentAnim) return
-    if (!currentAnim.takesItem) return
-    let destination = vasElements.find(ve => ve.vasId == currentAnim.animateTo)
-    if (!destination) return
+    // if (currentAnim.takesItem) return
+    // if(currentAnim.behavior.kind != 'melee') return
+    if(currentAnim.source !== Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId)return
+    console.log(unitElements, currentAnim.animateTo)
+    let destinationElement = unitElements.find(ue => ue.unitId == currentAnim.animateTo)?.element
+    if(!destinationElement){
+      destinationElement = vasElements.find(ue => ue.vasId == currentAnim.animateTo)?.element
+    }
+    if (!destinationElement) return
+    // there
+    console.log('animate to unit')
+    await animateUnitToUnit({elemToAnimate: unitHolder.visualUnitTop, destination:destinationElement})
 
-    let elemToAnimate = unitHolder.visualUnitTop
-    const { top: top1, left: left1 } = destination.element.getBoundingClientRect()
-    const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
-    let topDiff = top1 - top2
-    let leftDiff = left1 - left2
-    elemToAnimate.style.transition = `transform ${Ui.animationStepDuration / 2}ms ease`;
-    elemToAnimate.style.transform = `translate(${leftDiff}px, ${topDiff}px)`
-    await Ui.waitAnimStep(0.5)
-    elemToAnimate.style.transform = 'none'
+    // strikes
+    if(currentAnim.alsoDamages){
+      for(let i=0; i<currentAnim.alsoDamages.length;i++){
+        console.log('anim hit', i, currentAnim.alsoDamages)
+        unitHolder.heroSprite.style.transform = 'rotate(10deg) translateX(20px) translateY(-5px)'
+        await Ui.waitAnimStep(currentAnim.alsoDamages.length * Ui.strikeDurationMod / 2)
+        unitHolder.heroSprite.style.transform = 'none'
+        await Ui.waitAnimStep(currentAnim.alsoDamages.length * Ui.strikeDurationMod / 2)
+      }
+    }
+
+    if(currentAnim.behavior.kind == 'travel')return
+
+    // back again
+    unitHolder.visualUnitTop.style.transform = 'none'
+    Ui.waitAnimStep(Ui.animateToDurationMod)
   })
+
   units1.appendChild(unitHolder.unitAndArea)
   unitElements.push({ element: unitHolder.unitAndArea, unitId: playerInClient.unitId })
+}
+
+export function getCurrentAnim():BattleAnimation|undefined{
+  if(!Ui.uiStateYep.lastMsgFromServer)return undefined
+  let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
+  if (!currentAnim) return undefined
+  return currentAnim
 }
 
 export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
@@ -407,8 +484,9 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
     let currentAnim = Ui.uiStateYep.lastMsgFromServer.animations.at(Ui.uiStateYep.currentAnimIndex)
     if (!currentAnim) return
     if (!currentAnim.takesItem) return
+    if (!currentAnim.animateTo) return
     if (currentAnim.animateTo !== arg.uiVas.id) return
-    await Ui.waitAnimStep(0.5)
+    await Ui.waitAnimStep(Ui.animateToDurationMod)
     Ui.changeVasLocked(arg.uiVas.id, false)
     updateOrRemoveVas()
   })
@@ -919,8 +997,9 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  changeScene(added.player, 'soloTrain0')
-  // equipItem(added.player, 'bomb')
+  changeScene(added.player, 'soloTrain1')
+  equipItem(added.player, 'bomb')
+  equipItem(added.player, 'club')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
