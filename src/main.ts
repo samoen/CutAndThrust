@@ -48,9 +48,7 @@ export function dispatchBus(uiEvent: UIEvent) {
 
 export type UIEvent = typeof uiEvents[keyof typeof uiEvents]
 
-export let unitElements: { element: HTMLElement, unitId: UnitId, team: 1|2 }[] = []
-export let vasElements: { element: HTMLElement, vasId: VisualActionSourceId, team:1|2 }[] = []
-
+export let unitElements: { element: HTMLElement, guestArea: HTMLElement, unitId: UnitId, kind: 'enemy' | 'vas' | 'ally' }[] = []
 
 document.body.style.backgroundColor = 'aliceblue'
 document.body.style.padding = '0'
@@ -123,7 +121,7 @@ bgGrad.style.width = '100%'
 bgGrad.style.background = 'linear-gradient(to bottom, transparent 0%, black 90%)'
 bgAndGrad.appendChild(bgGrad)
 
-function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement } {
+function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement, guestArea: HTMLElement } {
   let unitAndArea = document.createElement('div')
   unitAndArea.style.display = 'flex'
   unitAndArea.style.flexDirection = 'row'
@@ -224,29 +222,21 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     if (!Ui.uiStateYep.lastMsgFromServer) return
     let currentAnim = getCurrentAnim()
     if (!currentAnim) return
+    if (currentAnim.behavior.kind != 'melee' && currentAnim.behavior.kind != 'travel') return
     if (currentAnim.source !== arg.unitId) return
-    console.log(unitElements, currentAnim.animateTo)
     let destinationUnitElement = unitElements.find(ue => ue.unitId == currentAnim.animateTo)
-    let destinationVasElement = vasElements.find(ue => ue.vasId == currentAnim.animateTo)
-    let destinationElement = destinationUnitElement?.element
-    let destinationTeam = destinationUnitElement?.team
-    if(destinationVasElement){
-      destinationElement = destinationVasElement.element
-      destinationTeam = destinationVasElement.team
-    }
-    if (!destinationElement) return
-    if (!destinationTeam) return
+    if (!destinationUnitElement) return
     // animate to unit
-    await animateUnitToUnit({ elemToAnimate: visualUnitTop, destination: destinationElement, destTeam:destinationTeam })
+    await animateUnitToUnit({ elemToAnimate: visualUnitTop, destination: destinationUnitElement.element, destTeam: destinationUnitElement.kind })
 
     // strikes
     if (currentAnim.alsoDamages) {
-      let outgoingStrikes = currentAnim.alsoDamages.find(ad=>ad.target == currentAnim.animateTo)
-      if(outgoingStrikes){
+      let outgoingStrikes = currentAnim.alsoDamages.find(ad => ad.target == currentAnim.animateTo)
+      if (outgoingStrikes) {
         for (let i = 0; i < outgoingStrikes.amount.length; i++) {
           console.log('anim hit', i, outgoingStrikes)
           let appendTransform = ''
-          if(heroSprite.style.transform != 'none'){
+          if (heroSprite.style.transform != 'none') {
             appendTransform = heroSprite.style.transform
           }
           heroSprite.style.transform = appendTransform + 'rotate(10deg) translateX(20px) translateY(-5px)'
@@ -270,7 +260,15 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     removeAnimateToListener()
   }
 
-  return { unitAndArea: unitAndArea, heroSprite: heroSprite, nameTag: nameTag, homePlaceholder: homePlaceholder, onRemove: onRemove, visualUnitTop: visualUnitTop }
+  return {
+    unitAndArea: unitAndArea,
+    heroSprite: heroSprite,
+    guestArea: guestAreaPlaceholder,
+    nameTag: nameTag,
+    homePlaceholder: homePlaceholder,
+    onRemove: onRemove,
+    visualUnitTop: visualUnitTop
+  }
 }
 
 export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLElement, onRemoveBattleBar: () => void } {
@@ -348,13 +346,13 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   }
 }
 
-async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { elemToAnimate: HTMLElement, destination: HTMLElement, destTeam:1|2 }) {
+async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { elemToAnimate: HTMLElement, destination: HTMLElement, destTeam: 'enemy' | 'vas' | 'ally' }) {
   const { top: top1, left: left1 } = destination.getBoundingClientRect()
   const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
   let topDiff = top1 - top2
   let leftDiff = left1 - left2
-  if(destTeam === 1){
-    leftDiff += destination.offsetWidth / 2 
+  if (destTeam === 'ally') {
+    leftDiff += destination.offsetWidth / 2
   }
   elemToAnimate.style.transition = `transform ${Ui.animationStepDuration * Ui.animateToDurationMod}ms ease`;
   elemToAnimate.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
@@ -382,7 +380,12 @@ export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) 
 
 
   units1.appendChild(unitHolder.unitAndArea)
-  unitElements.push({ element: unitHolder.unitAndArea, unitId: playerInClient.unitId, team:1 })
+  unitElements.push({
+    element: unitHolder.unitAndArea,
+    guestArea: unitHolder.guestArea,
+    unitId: playerInClient.unitId,
+    kind: 'ally'
+  })
 }
 
 export function getCurrentAnim(): BattleAnimation | undefined {
@@ -447,7 +450,12 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     updateOrRemoveUnit()
   })
   units2.appendChild(unitHolder.unitAndArea)
-  unitElements.push({ element: unitHolder.unitAndArea, unitId: enemyInClient.unitId, team:2 })
+  unitElements.push({
+    element: unitHolder.unitAndArea,
+    guestArea: unitHolder.guestArea,
+    unitId: enemyInClient.unitId,
+    kind: 'enemy'
+  })
 }
 
 export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
@@ -457,7 +465,7 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   unitHolder.nameTag.textContent = arg.uiVas.displayName
   unitHolder.homePlaceholder.style.order = '1'
   units2.appendChild(unitHolder.unitAndArea)
-  vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id, team: 2 })
+  unitElements.push({ element: unitHolder.unitAndArea, guestArea: unitHolder.guestArea, unitId: arg.uiVas.id, kind: 'vas' })
 
   function updateOrRemoveVas() {
     let vas = Ui.vasesToShow2().find(vas => vas.id == arg.uiVas.id)
@@ -469,7 +477,7 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
       removePickedUpListener()
       unitHolder.onRemove()
       unitHolder.unitAndArea.remove()
-      vasElements = vasElements.filter(ve => ve.vasId != arg.uiVas.id)
+      unitElements = unitElements.filter(ve => ve.unitId != arg.uiVas.id)
     }
   }
   let removeUpdateListener = listenBus(uiEvents.rerender, () => {
@@ -499,6 +507,34 @@ centerPlaceHolder.style.left = '50%'
 // centerPlaceHolder.style.backgroundColor = 'blue'
 visual.appendChild(centerPlaceHolder)
 
+// animate missle
+listenBus(uiEvents.animate, async () => {
+  let anim = getCurrentAnim()
+  if (!anim) return
+  if (anim.behavior.kind != 'missile') return
+  let sourceElem = unitElements.find(ue => ue.unitId == anim.source)
+  if (!sourceElem) return
+  let destination = unitElements.find(ue => ue.unitId == anim.animateTo)
+  if (!destination) return
+  let missleElement = document.createElement('img')
+  missleElement.style.position = 'absolute'
+  missleElement.style.top = '40%'
+  missleElement.src = anySprites[anim.behavior.extraSprite]
+  sourceElem.guestArea.appendChild(missleElement)
+
+  await Ui.nextAnimFrame()
+
+  const { top: top1, left: left1 } = destination.guestArea.getBoundingClientRect()
+  const { top: top2, left: left2 } = sourceElem.guestArea.getBoundingClientRect()
+  let topDiff = top1 - top2
+  let leftDiff = left1 - left2
+  missleElement.style.transition = `transform ${Ui.animationStepDuration * Ui.strikeDurationMod}ms linear`;
+  missleElement.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
+  await Ui.waitAnimStep(Ui.strikeDurationMod)
+
+  missleElement.remove()
+})
+
 let applyUnitsStyle = (units: HTMLDivElement) => {
   units.style.display = 'grid'
   units.style.rowGap = '2px'
@@ -519,7 +555,7 @@ visual.appendChild(units2)
 
 listenBus(uiEvents.rerender, () => {
   for (let uiVas of Ui.vasesToShow2()) {
-    if (!vasElements.some(ue => ue.vasId == uiVas.id)) {
+    if (!unitElements.some(ue => ue.unitId == uiVas.id)) {
       putVas({ uiVas: uiVas })
     }
   }
@@ -995,9 +1031,9 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  changeScene(added.player, 'soloTrain1')
-  equipItem(added.player, 'bomb')
-  equipItem(added.player, 'club')
+  changeScene(added.player, 'soloTrain2')
+  equipItem(added.player, 'bow')
+  equipItem(added.player, 'potion')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg

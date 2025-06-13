@@ -544,7 +544,7 @@ export async function choose(
     let anim = uiStateYep.lastMsgFromServer.animations.at(i)
     if (!anim) continue
     if (!(anim.animateTo)) continue
-    if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
+    // if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
     // console.log('anim to',anim.animateTo)
     // if(!(anim.alsoDamages || anim.takesItem))continue
     uiStateYep.currentAnimIndex = i
@@ -552,15 +552,18 @@ export async function choose(
     let durationModifier = 0
 
     // there and back again
-    if(anim.animateTo && anim.behavior.kind != 'travel'){
+    if(anim.behavior.kind == 'melee'){
       durationModifier+= animateToDurationMod*2
     }
     if(anim.behavior.kind == 'travel'){
       durationModifier += animateToDurationMod
     }
+    if(anim.behavior.kind == 'missile'){
+      durationModifier += strikeDurationMod
+    }
     // if(anim.behavior.kind == 'missile')
     // for each strike
-    if(anim.alsoDamages){
+    if(anim.alsoDamages && anim.behavior.kind == 'melee'){
       let firstDmged = anim.alsoDamages.at(0)
       if(firstDmged){
         let strikes = firstDmged.amount.length * strikeDurationMod
