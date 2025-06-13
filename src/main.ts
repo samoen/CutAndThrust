@@ -221,7 +221,6 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let removeAnimateToListener = listenBus(uiEvents.animate, async () => {
-    console.log('animate hero')
     if (!Ui.uiStateYep.lastMsgFromServer) return
     let currentAnim = getCurrentAnim()
     if (!currentAnim) return
@@ -458,7 +457,7 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   unitHolder.nameTag.textContent = arg.uiVas.displayName
   unitHolder.homePlaceholder.style.order = '1'
   units2.appendChild(unitHolder.unitAndArea)
-  vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id })
+  vasElements.push({ element: unitHolder.unitAndArea, vasId: arg.uiVas.id, team: 2 })
 
   function updateOrRemoveVas() {
     let vas = Ui.vasesToShow2().find(vas => vas.id == arg.uiVas.id)
