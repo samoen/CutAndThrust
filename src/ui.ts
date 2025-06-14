@@ -57,9 +57,6 @@ export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
-export const animationStepDuration = 500
-export const animateToDurationMod = 2
-export const strikeDurationMod = 1
 
 export const uiStateYep = {
   lastUnitClicked: undefined as UnitId | undefined,
@@ -545,35 +542,38 @@ export async function choose(
   for (let i = 0; i < animsLen; i++) {
     let anim = msg.animations.at(i)
     if (!anim) continue
-    if (!(anim.animateTo)) continue
+    // if (!(anim.animateTo)) continue
     // if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
     // console.log('anim to',anim.animateTo)
     // if(!(anim.alsoDamages || anim.takesItem))continue
     uiStateYep.currentAnimIndex = i
     dispatchBus(uiEvents.animate)
-    let durationModifier = 0
 
-    // there and back again
-    if(anim.behavior.kind == 'melee'){
+    if (anim.behavior.kind == 'melee') {
+      // animate and back again
       await waitAnimStep('meleeThere')
-      // durationModifier+= animateToDurationMod*2
-    }
-    if(anim.behavior.kind == 'travel'){
       await waitAnimStep('meleeThere')
-      // durationModifier += animateToDurationMod
     }
-    if(anim.behavior.kind == 'missile'){
-      await waitAnimStep('missile')
-      await waitAnimStep('missile')
-      // durationModifier += strikeDurationMod
+    if (anim.behavior.kind == 'travel') {
+      await waitAnimStep('meleeThere')
     }
-    // if(anim.behavior.kind == 'missile')
+    if (anim.behavior.kind == 'missile') {
+      // missile travel
+      await waitAnimStep('missile')
+      // time to see them lose health
+      await waitAnimStep('seeResult')
+    }
+    if(anim.behavior.kind == 'center'){
+      await waitAnimStep('toCenter')
+      await waitAnimStep('seeResult')
+    }
+
     // for each strike
-    if(anim.alsoDamages && anim.behavior.kind == 'melee'){
+    if (anim.alsoDamages && anim.behavior.kind == 'melee') {
       let firstDmged = anim.alsoDamages.at(0)
-      if(firstDmged){
+      if (firstDmged) {
         // let strikes = firstDmged.amount.length * strikeDurationMod
-        for(let i=0;i<firstDmged.amount.length;i++){
+        for (let i = 0; i < firstDmged.amount.length; i++) {
           await waitAnimStep('halfStrike')
           await waitAnimStep('halfStrike')
         }
@@ -581,14 +581,8 @@ export async function choose(
         // durationModifier += firstDmged.amount.length * strikeDurationMod
       }
     }
-    // console.log('full step anim dur', durationModifier)
-    // await waitAnimStep(durationModifier)
-    if(anim.behavior.kind == 'melee'){
-      await waitAnimStep('meleeThere')
-      // durationModifier+= animateToDurationMod*2
-    }
   }
-  
+
   // uiStateYep.lastMsgFromServer = msg
   // await waitAnimStep(1)
   syncVisualsToMsg()
@@ -596,15 +590,17 @@ export async function choose(
   dispatchBus(uiEvents.rerender)
 }
 
+export const animationDurations = {
+  meleeThere: 500,
+  missile: 400,
+  halfStrike: 150,
+  seeResult: 400,
+  toCenter: 500,
+}
 
-export async function waitAnimStep(length:'meleeThere'|'missile'|'halfStrike') {
+export async function waitAnimStep(duration: 'meleeThere' | 'missile' | 'halfStrike' | 'seeResult' | 'toCenter') {
   let promRes = newPromWithRes()
-  let durations = {
-    meleeThere:800,
-    missile:500,
-    halfStrike:300,
-  }
-  let waitMs = durations[length]
+  let waitMs = animationDurations[duration]
   setTimeout(promRes.resolve, waitMs)
   await promRes.prom,
     await nextAnimFrame()

@@ -48,7 +48,7 @@ export function dispatchBus(uiEvent: UIEvent) {
 
 export type UIEvent = typeof uiEvents[keyof typeof uiEvents]
 
-export let intraSyncUnits: { element: HTMLElement, guestArea: HTMLElement, unitId: UnitId, kind: 'enemy' | 'vas' | 'ally' }[] = []
+export let intraSyncUnits: { element: HTMLElement, guestArea: HTMLElement, homeArea: HTMLElement, unitId: UnitId, kind: 'enemy' | 'vas' | 'ally' }[] = []
 
 document.body.style.backgroundColor = 'aliceblue'
 document.body.style.padding = '0'
@@ -128,7 +128,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
 
   let homePlaceholder = document.createElement('div')
   // homePlaceholder.style.order = '1'
-  homePlaceholder.style.border = '2px dashed transparent'
+  // homePlaceholder.style.border = '2px dashed transparent'
   homePlaceholder.style.borderRadius = '10px'
   homePlaceholder.style.width = '50%'
   homePlaceholder.style.height = 'auto'
@@ -193,17 +193,19 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   heroSprite.draggable = false
 
   let guestAreaPlaceholder = document.createElement('div')
-  guestAreaPlaceholder.style.zIndex = '2'
-  guestAreaPlaceholder.style.position = 'relative'
-  guestAreaPlaceholder.style.border = '2px dashed transparent'
-  guestAreaPlaceholder.style.borderRadius = '10px'
+  // guestAreaPlaceholder.style.display = 'flex'
+  // guestAreaPlaceholder.style.zIndex = '2'
+  // guestAreaPlaceholder.style.position = 'relative'
+  // guestAreaPlaceholder.style.border = '2px dashed transparent'
+  // guestAreaPlaceholder.style.borderRadius = '10px'
   guestAreaPlaceholder.style.width = '50%'
   guestAreaPlaceholder.style.height = 'auto'
+  // guestAreaPlaceholder.style.backgroundColor = 'red'
   unitAndArea.appendChild(guestAreaPlaceholder)
   function indicateSelected() {
     if (!Ui.uiStateYep.lastUnitClicked) return
     if (Ui.uiStateYep.lastUnitClicked == arg.unitId) {
-      homePlaceholder.style.boxShadow = '0 0 20px rgb(0, 0, 0, 0.4)';
+      homePlaceholder.style.boxShadow = '0 0 10px rgb(0, 0, 0, 0.9)';
     } else {
       homePlaceholder.style.boxShadow = 'none'
     }
@@ -211,6 +213,9 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   indicateSelected()
   let removeSelectedListener = listenBus(uiEvents.rerender, () => {
     indicateSelected()
+  })
+  let removeHideWhenAnimatingListener = listenBus(uiEvents.animate, ()=>{
+    homePlaceholder.style.boxShadow = 'none'
   })
 
   homePlaceholder.addEventListener('click', () => {
@@ -255,6 +260,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let onRemove = () => {
+    removeHideWhenAnimatingListener()
     removeSelectedListener()
     removeStatusListen()
     removeAnimateToListener()
@@ -288,29 +294,18 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   healthBar.style.marginBottom = '1px'
   bars.appendChild(healthBar)
   let healthBarHealth = document.createElement('div')
-  function getMsgHps(msg: MessageFromServer): { hp: number, maxHp: number } {
-    // if (!Ui.uiStateYep.lastMsgFromServer) return { hp: 0, maxHp: 1 }
-    if (unitId == msg.yourInfo.unitId) {
-      return { hp: msg.yourInfo.health, maxHp: msg.yourInfo.maxHealth }
-    }
-    let enemy = msg.enemiesInScene.find(e => e.unitId == unitId)
-    if (enemy) {
-      return { hp: enemy.health, maxHp: enemy.maxHealth }
-    }
-    return { hp: 0, maxHp: 1 }
-  }
-  // function getHpPercent(currentHp: number): number {
-  //   if (currentHp < 1) return 0
-  //   let msgHps = getMsgHps()
-  //   // console.log(currentHp, 'divide', msgHps.maxHp)
-  //   return 100 * (currentHp / msgHps.maxHp)
-  // }
-
-  // let lastSyncHp = 0
   function syncHealthToCurrent() {
     if (!Ui.uiStateYep.lastMsgFromServer) return
-    let lastMsgHps = getMsgHps(Ui.uiStateYep.lastMsgFromServer)
-    let percent = 100 * (lastMsgHps.hp / lastMsgHps.maxHp)
+    // let lastMsgHps = getMsgHps(Ui.uiStateYep.lastMsgFromServer)
+    let percent = 0
+    if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
+      percent = 100 * Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth
+    }
+    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
+    if (enemy) {
+      percent = 100 * enemy.health / enemy.maxHealth
+    }
+    // let percent = 100 * (lastMsgHps.hp / lastMsgHps.maxHp)
     healthBarHealth.style.width = `${percent}%`
   }
   syncHealthToCurrent()
@@ -335,6 +330,9 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     }
     if (currentAnim.behavior.kind == 'missile') {
       await Ui.waitAnimStep('missile')
+    }
+    if (currentAnim.behavior.kind == 'center') {
+      await Ui.waitAnimStep('toCenter')
     }
     let enemyInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
     let heroInPreviousMsg = undefined
@@ -361,8 +359,13 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
         }
       }
       healthBarHealth.style.width = `${percent}%`
-      await Ui.waitAnimStep('halfStrike')
-      await Ui.waitAnimStep('halfStrike')
+      if (currentAnim.behavior.kind == 'melee') {
+        await Ui.waitAnimStep('halfStrike')
+        await Ui.waitAnimStep('halfStrike')
+      } else {
+        await Ui.waitAnimStep('seeResult')
+
+      }
     }
   })
 
@@ -384,7 +387,7 @@ async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { ele
   if (destTeam === 'ally') {
     leftDiff += destination.offsetWidth / 2
   }
-  elemToAnimate.style.transition = `transform ${Ui.animationStepDuration * Ui.animateToDurationMod}ms ease`;
+  elemToAnimate.style.transition = `transform ${Ui.animationDurations.meleeThere}ms ease`;
   elemToAnimate.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
   await Ui.waitAnimStep('meleeThere')
 }
@@ -412,6 +415,7 @@ export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) 
   units1.appendChild(unitHolder.unitAndArea)
   intraSyncUnits.push({
     element: unitHolder.unitAndArea,
+    homeArea: unitHolder.homePlaceholder,
     guestArea: unitHolder.guestArea,
     unitId: playerInClient.unitId,
     kind: 'ally'
@@ -464,9 +468,6 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     if (!anim) return
     if (anim.noResetAggro) return
     if (anim.source != enemyInClient.unitId) return
-    if (anim.behavior.kind == 'melee') {
-      await Ui.waitAnimStep('meleeThere')
-    }
     aggro.style.width = `0%`
   })
 
@@ -493,6 +494,7 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
   intraSyncUnits.push({
     element: unitHolder.unitAndArea,
     guestArea: unitHolder.guestArea,
+    homeArea: unitHolder.homePlaceholder,
     unitId: enemyInClient.unitId,
     kind: 'enemy'
   })
@@ -505,7 +507,13 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   unitHolder.nameTag.textContent = arg.uiVas.displayName
   unitHolder.homePlaceholder.style.order = '1'
   units2.appendChild(unitHolder.unitAndArea)
-  intraSyncUnits.push({ element: unitHolder.unitAndArea, guestArea: unitHolder.guestArea, unitId: arg.uiVas.id, kind: 'vas' })
+  intraSyncUnits.push({
+    element: unitHolder.unitAndArea,
+    guestArea: unitHolder.guestArea,
+    homeArea: unitHolder.homePlaceholder,
+    unitId: arg.uiVas.id,
+    kind: 'vas'
+  })
 
   function updateOrRemoveVas() {
     let vas = Ui.vasesToShow2().find(vas => vas.id == arg.uiVas.id)
@@ -554,25 +562,57 @@ listenBus(uiEvents.animate, async () => {
   if (anim.behavior.kind != 'missile') return
   let sourceElem = intraSyncUnits.find(ue => ue.unitId == anim.source)
   if (!sourceElem) return
+  if (!anim.animateTo) return
   let destination = intraSyncUnits.find(ue => ue.unitId == anim.animateTo)
   if (!destination) return
   let missleElement = document.createElement('img')
-  missleElement.style.position = 'absolute'
-  missleElement.style.top = '40%'
+  missleElement.style.height = '30%'
+  // missleElement.style.backgroundColor = 'purple'
+  // missleElement.style.position = 'absolute'
+  missleElement.style.marginTop = '40%'
   missleElement.src = anySprites[anim.behavior.extraSprite]
   sourceElem.guestArea.appendChild(missleElement)
 
   await Ui.nextAnimFrame()
 
-  const { top: top1, left: left1 } = destination.guestArea.getBoundingClientRect()
-  const { top: top2, left: left2 } = sourceElem.guestArea.getBoundingClientRect()
-  let topDiff = top1 - top2
-  let leftDiff = left1 - left2
-  missleElement.style.transition = `transform ${Ui.animationStepDuration * Ui.strikeDurationMod}ms linear`;
+  const destRect = destination.homeArea.getBoundingClientRect()
+  let topDest = destRect.top + (destRect.height/2.5)
+  const { top: top2, left: left2 } = missleElement.getBoundingClientRect()
+  let topDiff = topDest - top2
+  let leftDiff = destRect.left - left2
+  missleElement.style.transition = `transform ${Ui.animationDurations.missile}ms linear`;
   missleElement.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
   await Ui.waitAnimStep('missile')
 
   missleElement.remove()
+})
+// animate center
+listenBus(uiEvents.animate, async () => {
+  let anim = getCurrentAnim()
+  if (!anim) return
+  if (anim.behavior.kind != 'center') return
+  let sourceElem = intraSyncUnits.find(ue => ue.unitId == anim.source)
+  if (!sourceElem) return
+  let destination = centerPlaceHolder
+  let animatingToCenter = document.createElement('img')
+  animatingToCenter.style.height = '30%'
+  // centeringElement.style.position = 'absolute'
+  // animatingToCenter.style.top = '40%'
+  animatingToCenter.style.marginTop = '50%'
+  animatingToCenter.src = anySprites[anim.behavior.extraSprite]
+  sourceElem.guestArea.appendChild(animatingToCenter)
+
+  await Ui.nextAnimFrame()
+
+  const { top: top1, left: left1 } = destination.getBoundingClientRect()
+  const { top: top2, left: left2 } = animatingToCenter.getBoundingClientRect()
+  let topDiff = top1 - top2
+  let leftDiff = left1 - left2
+  animatingToCenter.style.transition = `transform ${Ui.animationDurations.toCenter}ms linear`;
+  animatingToCenter.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
+  await Ui.waitAnimStep('toCenter')
+
+  animatingToCenter.remove()
 })
 
 let applyUnitsStyle = (units: HTMLDivElement) => {
@@ -1071,9 +1111,9 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain2')
-  // equipItem(added.player, 'bow')
-  // equipItem(added.player, 'potion')
+  changeScene(added.player, 'soloTrain2')
+  equipItem(added.player, 'bow')
+  // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
