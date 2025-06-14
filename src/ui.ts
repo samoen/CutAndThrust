@@ -64,6 +64,7 @@ export const strikeDurationMod = 1
 export const uiStateYep = {
   lastUnitClicked: undefined as UnitId | undefined,
   lastMsgFromServer: undefined as MessageFromServer | undefined,
+  previousMsgFromServer: undefined as MessageFromServer | undefined,
   currentAnimIndex: -1,
 }
 
@@ -537,11 +538,12 @@ export async function choose(
   handlePlayerAction(player, actionFromId);
   updatePlayerActions(player)
   let msg = buildNextMessage(player, player.unitId)
+  uiStateYep.previousMsgFromServer = uiStateYep.lastMsgFromServer
   uiStateYep.lastMsgFromServer = msg
-  let animsLen = uiStateYep.lastMsgFromServer.animations.length
-  console.log('looping anims', uiStateYep.lastMsgFromServer.animations)
+  let animsLen = msg.animations.length
+  // console.log('looping anims', msg.animations)
   for (let i = 0; i < animsLen; i++) {
-    let anim = uiStateYep.lastMsgFromServer.animations.at(i)
+    let anim = msg.animations.at(i)
     if (!anim) continue
     if (!(anim.animateTo)) continue
     // if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
@@ -553,28 +555,41 @@ export async function choose(
 
     // there and back again
     if(anim.behavior.kind == 'melee'){
-      durationModifier+= animateToDurationMod*2
+      await waitAnimStep('meleeThere')
+      // durationModifier+= animateToDurationMod*2
     }
     if(anim.behavior.kind == 'travel'){
-      durationModifier += animateToDurationMod
+      await waitAnimStep('meleeThere')
+      // durationModifier += animateToDurationMod
     }
     if(anim.behavior.kind == 'missile'){
-      durationModifier += strikeDurationMod
+      await waitAnimStep('missile')
+      await waitAnimStep('missile')
+      // durationModifier += strikeDurationMod
     }
     // if(anim.behavior.kind == 'missile')
     // for each strike
     if(anim.alsoDamages && anim.behavior.kind == 'melee'){
       let firstDmged = anim.alsoDamages.at(0)
       if(firstDmged){
-        let strikes = firstDmged.amount.length * strikeDurationMod
-        console.log(strikes)
-        durationModifier += firstDmged.amount.length * strikeDurationMod
+        // let strikes = firstDmged.amount.length * strikeDurationMod
+        for(let i=0;i<firstDmged.amount.length;i++){
+          await waitAnimStep('halfStrike')
+          await waitAnimStep('halfStrike')
+        }
+        // console.log(strikes)
+        // durationModifier += firstDmged.amount.length * strikeDurationMod
       }
     }
-    console.log('full step anim dur', durationModifier)
-    await waitAnimStep(durationModifier)
+    // console.log('full step anim dur', durationModifier)
+    // await waitAnimStep(durationModifier)
+    if(anim.behavior.kind == 'melee'){
+      await waitAnimStep('meleeThere')
+      // durationModifier+= animateToDurationMod*2
+    }
   }
   
+  // uiStateYep.lastMsgFromServer = msg
   // await waitAnimStep(1)
   syncVisualsToMsg()
   ensureSelectedUnit()
@@ -582,9 +597,15 @@ export async function choose(
 }
 
 
-export async function waitAnimStep(durationModifier: number = 1) {
+export async function waitAnimStep(length:'meleeThere'|'missile'|'halfStrike') {
   let promRes = newPromWithRes()
-  setTimeout(promRes.resolve, animationStepDuration * durationModifier)
+  let durations = {
+    meleeThere:800,
+    missile:500,
+    halfStrike:300,
+  }
+  let waitMs = durations[length]
+  setTimeout(promRes.resolve, waitMs)
   await promRes.prom,
     await nextAnimFrame()
 }
