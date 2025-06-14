@@ -1111,8 +1111,8 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  changeScene(added.player, 'soloTrain2')
-  equipItem(added.player, 'bow')
+  // changeScene(added.player, 'soloTrain2')
+  // equipItem(added.player, 'bow')
   // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)

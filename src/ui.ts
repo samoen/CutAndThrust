@@ -514,10 +514,12 @@ export function handlePutsStatuses(anim: BattleAnimation) {
     }
   }
 }
-
+export let animationsInProgress = false
 export async function choose(
   chosen: GameActionSentToClient
 ) {
+  if (animationsInProgress) return
+  animationsInProgress = true
   const player = users.get("me");
   if (!player) {
     console.log('no player when choose')
@@ -532,6 +534,7 @@ export async function choose(
     console.log('chosen action not valid', chosen.buttonText, playerActions.map(a => a.buttonText))
     return
   }
+
   handlePlayerAction(player, actionFromId);
   updatePlayerActions(player)
   let msg = buildNextMessage(player, player.unitId)
@@ -563,7 +566,7 @@ export async function choose(
       // time to see them lose health
       await waitAnimStep('seeResult')
     }
-    if(anim.behavior.kind == 'center'){
+    if (anim.behavior.kind == 'center') {
       await waitAnimStep('toCenter')
       await waitAnimStep('seeResult')
     }
@@ -588,6 +591,7 @@ export async function choose(
   syncVisualsToMsg()
   ensureSelectedUnit()
   dispatchBus(uiEvents.rerender)
+  animationsInProgress = false
 }
 
 export const animationDurations = {
