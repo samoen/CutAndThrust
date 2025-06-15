@@ -557,7 +557,7 @@ export async function choose(
       await waitAnimStep('meleeThere')
       await waitAnimStep('meleeThere')
     }
-    if (anim.behavior.kind == 'travel') {
+    if (anim.behavior.kind == 'travel' || anim.teleporting) {
       await waitAnimStep('meleeThere')
     }
     if (anim.behavior.kind == 'center') {
@@ -569,7 +569,6 @@ export async function choose(
     if (anim.alsoDamages) {
       let firstDmged = anim.alsoDamages.at(0)
       if (firstDmged) {
-        // let strikes = firstDmged.amount.length * strikeDurationMod
         for (let i = 0; i < firstDmged.amount.length; i++) {
           if (anim.behavior.kind == 'melee') {
             await waitAnimStep('halfStrike')
@@ -579,10 +578,8 @@ export async function choose(
             await waitAnimStep('missile')
             await waitAnimStep('seeResult')
           }
-          
+
         }
-        // console.log(strikes)
-        // durationModifier += firstDmged.amount.length * strikeDurationMod
       }
     }
   }

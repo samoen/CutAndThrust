@@ -91,11 +91,11 @@ visual.style.alignItems = 'center'
 visual.style.height = 'max-content'
 visual.style.minHeight = '100%'
 wrapGameField.appendChild(visual)
-listenBus(uiEvents.animate, async()=>{
+listenBus(uiEvents.animate, async () => {
   let anim = getCurrentAnim()
-  if(!anim)return
-  if(anim.behavior.kind == 'travel' || anim.teleporting){
-    if(anim.source == Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId){
+  if (!anim) return
+  if (anim.behavior.kind == 'travel' || anim.teleporting) {
+    if (anim.source == Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId) {
       visual.style.opacity = '0'
       await Ui.waitAnimStep('meleeThere')
       visual.style.opacity = '1'
@@ -146,33 +146,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   unitAndArea.appendChild(homePlaceholder)
 
   let visualUnitTop = document.createElement('div')
-  visualUnitTop.style.transition = 'opacity 0.5s ease-in-out'
   homePlaceholder.appendChild(visualUnitTop)
-  let removeDieListener = listenBus(uiEvents.animate,async()=>{
-    let anim = getCurrentAnim()
-    if(!anim)return
-    if(!anim.alsoDamages)return
-    let meDamaged = anim.alsoDamages.find(d=>d.target == arg.unitId)
-    if(!meDamaged)return
-    if(!meDamaged.causedDeath)return
-    if(anim.behavior.kind == 'melee'){
-        await Ui.waitAnimStep("meleeThere")
-    }
-    if(anim.behavior.kind == 'center'){
-        await Ui.waitAnimStep("toCenter")
-    }
-    for(let d of meDamaged.amount){
-      if(anim.behavior.kind == "missile"){
-        await Ui.waitAnimStep("missile")
-      }
-      if(anim.behavior.kind == 'melee'){
-        await Ui.waitAnimStep('halfStrike')
-      }
-    }
-    // if(!Ui.uiStateYep.previousMsgFromServer)return
-    // let meHp = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e=>e.unitId == arg.)
-    visualUnitTop.style.opacity = '0'
-  })
 
   let nameHolder = document.createElement('div')
   nameHolder.style.display = 'flex'
@@ -250,7 +224,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   let removeSelectedListener = listenBus(uiEvents.rerender, () => {
     indicateSelected()
   })
-  let removeHideWhenAnimatingListener = listenBus(uiEvents.animate, ()=>{
+  let removeHideWhenAnimatingListener = listenBus(uiEvents.animate, () => {
     homePlaceholder.style.boxShadow = 'none'
   })
 
@@ -296,7 +270,6 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let onRemove = () => {
-    removeDieListener()
     removeHideWhenAnimatingListener()
     removeSelectedListener()
     removeStatusListen()
@@ -511,6 +484,31 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     aggro.style.width = `0%`
   })
 
+  let removeDieListener = listenBus(uiEvents.animate, async () => {
+    let anim = getCurrentAnim()
+    if (!anim) return
+    if (!anim.alsoDamages) return
+    let meDamaged = anim.alsoDamages.find(d => d.target == enemyInClient.unitId)
+    if (!meDamaged) return
+    if (!meDamaged.causedDeath) return
+    if (anim.behavior.kind == 'melee') {
+      await Ui.waitAnimStep("meleeThere")
+    }
+    if (anim.behavior.kind == 'center') {
+      await Ui.waitAnimStep("toCenter")
+    }
+    for (let _ of meDamaged.amount) {
+      if (anim.behavior.kind == "missile") {
+        await Ui.waitAnimStep("missile")
+      }
+      if (anim.behavior.kind == 'melee') {
+        await Ui.waitAnimStep('halfStrike')
+      }
+    }
+    unitHolder.visualUnitTop.style.transition = 'opacity 0.5s ease-in-out'
+    unitHolder.visualUnitTop.style.opacity = '0'
+  })
+
   let updateOrRemoveUnit = () => {
     if (!Ui.uiStateYep.lastMsgFromServer) return
     let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(eic => eic.unitId == enemyInClient.unitId)
@@ -519,6 +517,7 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
       unitHolder.nameTag.textContent = enemy.displayName
       return
     }
+    removeDieListener()
     removeUpdateUnitListener()
     removeAnimateAggroListener()
     battleBar.onRemoveBattleBar()
@@ -546,7 +545,15 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
   unitHolder.heroSprite.src = anySprites[arg.uiVas.sprite]
   unitHolder.nameTag.textContent = arg.uiVas.displayName
   unitHolder.homePlaceholder.style.order = '1'
+  unitHolder.visualUnitTop.style.opacity = '0'
+    ; (async () => {
+      await Ui.nextAnimFrame()
+      unitHolder.visualUnitTop.style.transition = 'opacity 300ms ease-in'
+      unitHolder.visualUnitTop.style.opacity = '1'
+    })()
   units2.appendChild(unitHolder.unitAndArea)
+
+
   intraSyncUnits.push({
     element: unitHolder.unitAndArea,
     guestArea: unitHolder.guestArea,
@@ -574,13 +581,15 @@ export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
 
   // Item dissapears when picked up
   let removePickedUpListener = listenBus(uiEvents.animate, async () => {
-    // if (!Ui.uiStateYep.lastMsgFromServer) return
     let currentAnim = getCurrentAnim()
     if (!currentAnim) return
     if (!currentAnim.takesItem) return
     if (!currentAnim.animateTo) return
     if (currentAnim.animateTo !== arg.uiVas.id) return
     await Ui.waitAnimStep('meleeThere')
+    unitHolder.visualUnitTop.style.transition = 'opacity 300ms ease-in'
+    unitHolder.visualUnitTop.style.opacity = '0'
+    await Ui.waitAnimStep('seeResult')
     Ui.changeVasLocked(arg.uiVas.id, false)
     updateOrRemoveVas()
   })
@@ -607,14 +616,14 @@ listenBus(uiEvents.animate, async () => {
   if (!destination) return
 
   let missileFlights = 1
-  if(anim.alsoDamages){
+  if (anim.alsoDamages) {
     let missileStrikes = anim.alsoDamages.at(0)?.amount.length
-    if(missileStrikes){
+    if (missileStrikes) {
       missileFlights = missileStrikes
     }
   }
 
-  for(let i = 0; i < missileFlights; i++){
+  for (let i = 0; i < missileFlights; i++) {
     let missleElement = document.createElement('img')
     missleElement.style.height = '30%'
     // missleElement.style.backgroundColor = 'purple'
@@ -622,18 +631,18 @@ listenBus(uiEvents.animate, async () => {
     missleElement.style.marginTop = '40%'
     missleElement.src = anySprites[anim.behavior.extraSprite]
     sourceElem.guestArea.appendChild(missleElement)
-  
+
     await Ui.nextAnimFrame()
-  
+
     const destRect = destination.homeArea.getBoundingClientRect()
-    let topDest = destRect.top + (destRect.height/2.5)
+    let topDest = destRect.top + (destRect.height / 2.5)
     const { top: top2, left: left2 } = missleElement.getBoundingClientRect()
     let topDiff = topDest - top2
     let leftDiff = destRect.left - left2
     missleElement.style.transition = `transform ${Ui.animationDurations.missile}ms linear`;
     missleElement.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
     await Ui.waitAnimStep('missile')
-  
+
     missleElement.remove()
   }
 })
