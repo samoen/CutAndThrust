@@ -81,7 +81,7 @@ wrapGameField.appendChild(yourSceneLabel)
 
 let visual = document.createElement('div')
 visual.style.position = 'relative'
-visual.style.transition = 'opacity 0.6s ease-in-out'
+visual.style.transition = `opacity ${Ui.animationDurations.meleeThere}ms ease-in-out`
 visual.style.backgroundColor = 'black'
 visual.style.display = 'grid'
 visual.style.columnGap = '1px'
@@ -91,6 +91,17 @@ visual.style.alignItems = 'center'
 visual.style.height = 'max-content'
 visual.style.minHeight = '100%'
 wrapGameField.appendChild(visual)
+listenBus(uiEvents.animate, async()=>{
+  let anim = getCurrentAnim()
+  if(!anim)return
+  if(anim.behavior.kind == 'travel' || anim.teleporting){
+    if(anim.source == Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId){
+      visual.style.opacity = '0'
+      await Ui.waitAnimStep('meleeThere')
+      visual.style.opacity = '1'
+    }
+  }
+})
 
 let imageBackground = document.createElement('div')
 imageBackground.style.position = 'absolute'
@@ -293,7 +304,14 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   healthBar.style.backgroundColor = 'black'
   healthBar.style.marginBottom = '1px'
   bars.appendChild(healthBar)
+
   let healthBarHealth = document.createElement('div')
+  healthBarHealth.style.borderRadius = '5px'
+  healthBarHealth.style.backgroundColor = 'green';
+  healthBarHealth.style.transition = 'width 0.2s ease-in-out'
+  healthBarHealth.style.height = '100%'
+  healthBar.appendChild(healthBarHealth)
+
   function syncHealthToCurrent() {
     if (!Ui.uiStateYep.lastMsgFromServer) return
     // let lastMsgHps = getMsgHps(Ui.uiStateYep.lastMsgFromServer)
@@ -305,19 +323,14 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     if (enemy) {
       percent = 100 * enemy.health / enemy.maxHealth
     }
-    // let percent = 100 * (lastMsgHps.hp / lastMsgHps.maxHp)
     healthBarHealth.style.width = `${percent}%`
   }
+
   syncHealthToCurrent()
-  healthBarHealth.style.borderRadius = '5px'
-  healthBarHealth.style.backgroundColor = 'green';
-  healthBarHealth.style.transition = 'width 0.2s ease-in-out'
-  healthBarHealth.style.height = '100%'
-  healthBar.appendChild(healthBarHealth)
   let removeHealthListener = listenBus(uiEvents.rerender, () => {
     syncHealthToCurrent()
   })
-  // let runningHp = lastSyncHp
+
   let removeHealthLossListener = listenBus(uiEvents.animate, async () => {
     if (!Ui.uiStateYep.previousMsgFromServer) return
     let currentAnim = getCurrentAnim()
@@ -358,6 +371,7 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
           percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
         }
       }
+      // percent = Math.floor(percent)
       healthBarHealth.style.width = `${percent}%`
       if (currentAnim.behavior.kind == 'melee') {
         await Ui.waitAnimStep('halfStrike')
@@ -1111,7 +1125,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain2')
+  // changeScene(added.player, 'soloTrain0')
   // equipItem(added.player, 'bow')
   // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)
