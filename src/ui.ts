@@ -560,25 +560,26 @@ export async function choose(
     if (anim.behavior.kind == 'travel') {
       await waitAnimStep('meleeThere')
     }
-    if (anim.behavior.kind == 'missile') {
-      // missile travel
-      await waitAnimStep('missile')
-      // time to see them lose health
-      await waitAnimStep('seeResult')
-    }
     if (anim.behavior.kind == 'center') {
       await waitAnimStep('toCenter')
       await waitAnimStep('seeResult')
     }
 
     // for each strike
-    if (anim.alsoDamages && anim.behavior.kind == 'melee') {
+    if (anim.alsoDamages) {
       let firstDmged = anim.alsoDamages.at(0)
       if (firstDmged) {
         // let strikes = firstDmged.amount.length * strikeDurationMod
         for (let i = 0; i < firstDmged.amount.length; i++) {
-          await waitAnimStep('halfStrike')
-          await waitAnimStep('halfStrike')
+          if (anim.behavior.kind == 'melee') {
+            await waitAnimStep('halfStrike')
+            await waitAnimStep('halfStrike')
+          }
+          if (anim.behavior.kind == 'missile') {
+            await waitAnimStep('missile')
+            await waitAnimStep('seeResult')
+          }
+          
         }
         // console.log(strikes)
         // durationModifier += firstDmged.amount.length * strikeDurationMod

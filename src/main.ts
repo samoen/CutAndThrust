@@ -148,6 +148,31 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   let visualUnitTop = document.createElement('div')
   visualUnitTop.style.transition = 'opacity 0.5s ease-in-out'
   homePlaceholder.appendChild(visualUnitTop)
+  let removeDieListener = listenBus(uiEvents.animate,async()=>{
+    let anim = getCurrentAnim()
+    if(!anim)return
+    if(!anim.alsoDamages)return
+    let meDamaged = anim.alsoDamages.find(d=>d.target == arg.unitId)
+    if(!meDamaged)return
+    if(!meDamaged.causedDeath)return
+    if(anim.behavior.kind == 'melee'){
+        await Ui.waitAnimStep("meleeThere")
+    }
+    if(anim.behavior.kind == 'center'){
+        await Ui.waitAnimStep("toCenter")
+    }
+    for(let d of meDamaged.amount){
+      if(anim.behavior.kind == "missile"){
+        await Ui.waitAnimStep("missile")
+      }
+      if(anim.behavior.kind == 'melee'){
+        await Ui.waitAnimStep('halfStrike')
+      }
+    }
+    // if(!Ui.uiStateYep.previousMsgFromServer)return
+    // let meHp = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e=>e.unitId == arg.)
+    visualUnitTop.style.opacity = '0'
+  })
 
   let nameHolder = document.createElement('div')
   nameHolder.style.display = 'flex'
@@ -271,6 +296,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let onRemove = () => {
+    removeDieListener()
     removeHideWhenAnimatingListener()
     removeSelectedListener()
     removeStatusListen()
@@ -579,26 +605,37 @@ listenBus(uiEvents.animate, async () => {
   if (!anim.animateTo) return
   let destination = intraSyncUnits.find(ue => ue.unitId == anim.animateTo)
   if (!destination) return
-  let missleElement = document.createElement('img')
-  missleElement.style.height = '30%'
-  // missleElement.style.backgroundColor = 'purple'
-  // missleElement.style.position = 'absolute'
-  missleElement.style.marginTop = '40%'
-  missleElement.src = anySprites[anim.behavior.extraSprite]
-  sourceElem.guestArea.appendChild(missleElement)
 
-  await Ui.nextAnimFrame()
+  let missileFlights = 1
+  if(anim.alsoDamages){
+    let missileStrikes = anim.alsoDamages.at(0)?.amount.length
+    if(missileStrikes){
+      missileFlights = missileStrikes
+    }
+  }
 
-  const destRect = destination.homeArea.getBoundingClientRect()
-  let topDest = destRect.top + (destRect.height/2.5)
-  const { top: top2, left: left2 } = missleElement.getBoundingClientRect()
-  let topDiff = topDest - top2
-  let leftDiff = destRect.left - left2
-  missleElement.style.transition = `transform ${Ui.animationDurations.missile}ms linear`;
-  missleElement.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
-  await Ui.waitAnimStep('missile')
-
-  missleElement.remove()
+  for(let i = 0; i < missileFlights; i++){
+    let missleElement = document.createElement('img')
+    missleElement.style.height = '30%'
+    // missleElement.style.backgroundColor = 'purple'
+    // missleElement.style.position = 'absolute'
+    missleElement.style.marginTop = '40%'
+    missleElement.src = anySprites[anim.behavior.extraSprite]
+    sourceElem.guestArea.appendChild(missleElement)
+  
+    await Ui.nextAnimFrame()
+  
+    const destRect = destination.homeArea.getBoundingClientRect()
+    let topDest = destRect.top + (destRect.height/2.5)
+    const { top: top2, left: left2 } = missleElement.getBoundingClientRect()
+    let topDiff = topDest - top2
+    let leftDiff = destRect.left - left2
+    missleElement.style.transition = `transform ${Ui.animationDurations.missile}ms linear`;
+    missleElement.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
+    await Ui.waitAnimStep('missile')
+  
+    missleElement.remove()
+  }
 })
 // animate center
 listenBus(uiEvents.animate, async () => {
@@ -1125,7 +1162,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain0')
+  // changeScene(added.player, 'soloTrain2')
   // equipItem(added.player, 'bow')
   // equipItem(added.player, 'bomb')
   updatePlayerActions(added.player)

@@ -586,7 +586,7 @@ function handleStatusEffects(on: BattleEventEntity, playerTriggered: Player) {
             battleAnimation: {
               triggeredBy: playerTriggered.unitId,
               source: on.entity.unitId,
-              alsoDamages: [{ target: on.entity.unitId, amount: [dmg] }],
+              alsoDamages: [{ target: on.entity.unitId, amount: [dmg], causedDeath:on.entity.health < 1 }],
               behavior: { kind: 'selfInflicted', extraSprite: statusData.eachTurnSprite },
               noResetAggro: true,
             }
@@ -916,7 +916,7 @@ function processBattleEvent(battleEvent: BattleEvent, player: Player) {
 
 
   const damageAnimations: DamageAnimation[] = [];
-  let damageAnimationForMissleTarget: DamageAnimation | undefined = undefined;
+  // let damageAnimationForMissleTarget: DamageAnimation | undefined = undefined;
   if (battleEvent.itemUsed.damages) {
     let ads = affectedsFromCanEffect(battleEvent.itemUsed.damages.affects)
     for (const healthModifyEvent of ads) {
@@ -929,34 +929,36 @@ function processBattleEvent(battleEvent: BattleEvent, player: Player) {
           battleEvent.source,
           healthModifyEvent,
         );
-        if (
-          beBehav.kind == 'missile' &&
-          healthModifyEvent.entity.unitId == battleEvent.primaryTarget.entity.unitId &&
-          damageAnimationForMissleTarget == undefined
-        ) {
-          damageAnimationForMissleTarget = {
-            target: healthModifyEvent.entity.unitId,
-            amount: r.dmgDone
-          };
-        } else {
+        // if (
+        //   beBehav.kind == 'missile' &&
+        //   healthModifyEvent.entity.unitId == battleEvent.primaryTarget.entity.unitId &&
+        //   damageAnimationForMissleTarget == undefined
+        // ) {
+        //   damageAnimationForMissleTarget = {
+        //     target: healthModifyEvent.entity.unitId,
+        //     amount: r.dmgDone,
+        //     causedDeath: healthModifyEvent.entity.health < 1
+        //   };
+        // } else {
           damageAnimations.push({
             target: healthModifyEvent.entity.unitId,
-            amount: r.dmgDone
+            amount: r.dmgDone,
+            causedDeath: healthModifyEvent.entity.health < 1
           });
-        }
+        // }
       }
     }
   }
-  if (damageAnimationForMissleTarget) {
-    const firstStrike = damageAnimationForMissleTarget.amount.at(0);
-    if (firstStrike) {
-      damageAnimations.push({
-        target: damageAnimationForMissleTarget.target,
-        amount: [firstStrike]
-      });
-      damageAnimationForMissleTarget.amount.splice(0, 1);
-    }
-  }
+  // if (damageAnimationForMissleTarget) {
+  //   const firstStrike = damageAnimationForMissleTarget.amount.at(0);
+  //   if (firstStrike) {
+  //     damageAnimations.push({
+  //       target: damageAnimationForMissleTarget.target,
+  //       amount: [firstStrike]
+  //     });
+  //     damageAnimationForMissleTarget.amount.splice(0, 1);
+  //   }
+  // }
 
   const battleAnimation: BattleAnimation = {
     triggeredBy: player.unitId,
@@ -973,21 +975,6 @@ function processBattleEvent(battleEvent: BattleEvent, player: Player) {
     sceneId: player.currentUniqueSceneId,
     battleAnimation: battleAnimation,
   });
-  if (damageAnimationForMissleTarget) {
-    for (const i of damageAnimationForMissleTarget.amount) {
-      const xba: BattleAnimation = {
-        triggeredBy: player.unitId,
-        source: battleEvent.source.entity.unitId,
-        behavior: beBehav,
-        animateTo: battleEvent.primaryTarget.entity.unitId,
-        alsoDamages: [{ target: damageAnimationForMissleTarget.target, amount: [i] }]
-      };
-      pushAnimation({
-        sceneId: player.currentUniqueSceneId,
-        battleAnimation: xba,
-      });
-    }
-  }
   if (battleEvent.itemUsed.id) {
     const itemState = battleEvent.source.entity.inventory.find((i) => i.stats.id == battleEvent.itemUsed.id);
     if (itemState) {

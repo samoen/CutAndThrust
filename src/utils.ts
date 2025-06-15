@@ -65,7 +65,7 @@ export type OffenseKind = 'brutal' | 'skillful' | 'magical'
 export type StatusMod = { statusId: StatusId; count: number };
 export type StatusModifyAnimation = { target: UnitId, statusId: StatusId; count?: number, remove?:boolean };
 export type StatusModifierEvent = { target: BattleEventEntity, dispell?:'good'|'bad', statusMod?:StatusMod };
-export type DamageAnimation = { target: UnitId; amount: number[] };
+export type DamageAnimation = { target: UnitId; amount: number[], causedDeath:boolean };
 export type HealAnimation = { target: UnitId; amount: number };
 
 export type DamageEvent = {
