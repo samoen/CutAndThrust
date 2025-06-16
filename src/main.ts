@@ -195,6 +195,10 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
     updateStatuses()
   })
 
+  let removeAnimateApplyStatusListener = listenBus(uiEvents.animate,()=>{
+    // apply a status
+  })
+
   let heroSprite = document.createElement('img')
   heroSprite.style.display = 'block'
   heroSprite.style.width = '100%'
@@ -270,6 +274,7 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let onRemove = () => {
+    removeAnimateApplyStatusListener()
     removeHideWhenAnimatingListener()
     removeSelectedListener()
     removeStatusListen()
@@ -377,14 +382,64 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
         await Ui.waitAnimStep('halfStrike')
       } else {
         await Ui.waitAnimStep('seeResult')
-
       }
     }
+  })
+  let removeHealthGainListener = listenBus(uiEvents.animate, async () => {
+    if (!Ui.uiStateYep.previousMsgFromServer) return
+    let currentAnim = getCurrentAnim()
+    if (!currentAnim) return
+    if (!currentAnim.alsoHeals) return
+    let dmgAnimForMe = currentAnim.alsoHeals.find(ad => ad.target == unitId)
+    if (!dmgAnimForMe) return
+    if (currentAnim.behavior.kind == 'melee') {
+      await Ui.waitAnimStep('meleeThere')
+    }
+    if (currentAnim.behavior.kind == 'missile') {
+      await Ui.waitAnimStep('missile')
+    }
+    if (currentAnim.behavior.kind == 'center') {
+      await Ui.waitAnimStep('toCenter')
+    }
+    let enemyInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
+    let heroInPreviousMsg = undefined
+    if (Ui.uiStateYep.previousMsgFromServer.yourInfo.unitId == unitId) {
+      heroInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.yourInfo
+    }
+
+    let amt = dmgAnimForMe.amount
+      let percent = 0
+      if (enemyInPreviousMsg) {
+        enemyInPreviousMsg.health += amt
+        if (enemyInPreviousMsg.health < 1) {
+          percent = 0
+        } else {
+          percent = 100 * (enemyInPreviousMsg.health / enemyInPreviousMsg.maxHealth)
+        }
+      }
+      if (heroInPreviousMsg) {
+        heroInPreviousMsg.health += amt
+        if (heroInPreviousMsg.health < 1) {
+          percent = 0
+        } else {
+          percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
+        }
+      }
+      // percent = Math.floor(percent)
+      healthBarHealth.style.width = `${percent}%`
+      if (currentAnim.behavior.kind == 'melee') {
+        await Ui.waitAnimStep('halfStrike')
+        await Ui.waitAnimStep('halfStrike')
+      } else {
+        await Ui.waitAnimStep('seeResult')
+      }
+    
   })
 
   let onRemoveBattleBar = () => {
     removeHealthListener()
     removeHealthLossListener()
+    removeHealthGainListener()
   }
   return {
     bars: bars,
@@ -1098,6 +1153,9 @@ itemSlotButtons.style.paddingTop = '10px'
 listenBus(uiEvents.rerender, () => {
   refreshItemSlotButtons()
 })
+listenBus(uiEvents.animate, () => {
+  refreshItemSlotButtons()
+})
 function refreshItemSlotButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
@@ -1171,9 +1229,9 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain2')
-  // equipItem(added.player, 'bow')
-  // equipItem(added.player, 'bomb')
+  changeScene(added.player, 'soloTrain2')
+  equipItem(added.player, 'bow')
+  equipItem(added.player, 'potion')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg

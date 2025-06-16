@@ -545,10 +545,6 @@ export async function choose(
   for (let i = 0; i < animsLen; i++) {
     let anim = msg.animations.at(i)
     if (!anim) continue
-    // if (!(anim.animateTo)) continue
-    // if (!(anim.behavior.kind == 'melee' || anim.behavior.kind == 'travel')) continue
-    // console.log('anim to',anim.animateTo)
-    // if(!(anim.alsoDamages || anim.takesItem))continue
     uiStateYep.currentAnimIndex = i
     dispatchBus(uiEvents.animate)
 
@@ -565,6 +561,10 @@ export async function choose(
       await waitAnimStep('seeResult')
     }
 
+    if(anim.behavior.kind == 'selfInflicted'){
+      await waitAnimStep('inflict')
+    }
+
     // for each strike
     if (anim.alsoDamages) {
       let firstDmged = anim.alsoDamages.at(0)
@@ -578,7 +578,6 @@ export async function choose(
             await waitAnimStep('missile')
             await waitAnimStep('seeResult')
           }
-
         }
       }
     }
@@ -598,9 +597,10 @@ export const animationDurations = {
   halfStrike: 150,
   seeResult: 400,
   toCenter: 500,
+  inflict: 300,
 }
 
-export async function waitAnimStep(duration: 'meleeThere' | 'missile' | 'halfStrike' | 'seeResult' | 'toCenter') {
+export async function waitAnimStep(duration: 'meleeThere' | 'missile' | 'halfStrike' | 'seeResult' | 'toCenter' | 'inflict') {
   let promRes = newPromWithRes()
   let waitMs = animationDurations[duration]
   setTimeout(promRes.resolve, waitMs)

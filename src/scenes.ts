@@ -502,7 +502,7 @@ const trainingRoom3: Scene = {
 					responseId: 'go',
 					responseText: 'Thanks Arthur',
 					retort: `Now we can't have you starting the game with all that loot. Please drop your weapon in the box, put your farmer stuff back on, and head through the portal.`,
-					unlockVas: ['vasLeaveTutorial']
+					unlockVas: ['vasLeaveTutorial', 'vasBox', 'vasBag', 'vasClothes']
 				}
 			]
 		},
@@ -524,6 +524,7 @@ const trainingRoom3: Scene = {
 			displayName: 'Box',
 			sprite: 'box',
 			startText: `Drop your weapon into this box.`,
+      startsLocked: true,
 			actionsWithRequirements: [
 				{
 					pickupItem: 'fist'
@@ -535,6 +536,7 @@ const trainingRoom3: Scene = {
 			displayName: 'Empty Bag',
 			sprite: 'bag',
 			startText: `Your trusty bag. It's empty`,
+      startsLocked: true,
 			actionsWithRequirements: [
 				{
 					pickupItem: 'belt'
@@ -546,6 +548,7 @@ const trainingRoom3: Scene = {
 			displayName: 'Clothes',
 			sprite: 'scarecrow',
 			startText: 'Just your old farmers clothes',
+      startsLocked: true,
 			actionsWithRequirements: [
 				{
 					pickupItem: 'rags'
