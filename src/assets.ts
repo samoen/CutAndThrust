@@ -228,9 +228,14 @@ export function getLandscape(key: LandscapeImage): string {
 }
 
 export function prefetchImages() {
-  const img = new Image()
-  img.src = castleLandscape
-  img.src = grimForestLandscape
+  let toFetch = [castleLandscape, plainsLandscape, bridgeLandscape, grimForestLandscape ]
+  for(let i of Object.values(anySprites)){
+    toFetch.push(i)
+  }
+  for(let i of toFetch){
+    const img = new Image()
+    img.src = i
+  }
 }
 
 prefetchImages()
