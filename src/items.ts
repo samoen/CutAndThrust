@@ -266,7 +266,7 @@ export const pendantOfProtection: Item = {
 	id: 'pendantOfProtection',
 	visualBase: 'necklace',
 	slot: 'body',
-	speed: 999,
+	speed: 9,
 	cooldown: 3,
 	provoke: 1,
 	targets: { kind: 'onlySelf' },
