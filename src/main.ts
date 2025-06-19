@@ -81,7 +81,6 @@ wrapGameField.appendChild(yourSceneLabel)
 
 let visual = document.createElement('div')
 visual.style.position = 'relative'
-visual.style.transition = `opacity ${Ui.animationDurations.meleeThere}ms ease-in-out`
 visual.style.backgroundColor = 'black'
 visual.style.display = 'grid'
 visual.style.columnGap = '1px'
@@ -96,6 +95,7 @@ listenBus(uiEvents.animate, async () => {
   if (!anim) return
   if (anim.behavior.kind == 'travel' || anim.teleporting) {
     if (anim.source == Ui.uiStateYep.lastMsgFromServer?.yourInfo.unitId) {
+      visual.style.transition = `opacity ${Ui.animationDurations.meleeThere}ms ease-in-out`
       visual.style.opacity = '0'
       await Ui.waitAnimStep('meleeThere')
       visual.style.opacity = '1'
@@ -1254,7 +1254,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain3')
+  changeScene(added.player, 'soloTrain1')
   // equipItem(added.player, 'poisonDart')
   // equipItem(added.player, 'fireStaff')
   // equipItem(added.player, 'thiefCloak')
