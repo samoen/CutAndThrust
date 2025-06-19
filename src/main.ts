@@ -132,7 +132,9 @@ bgGrad.style.width = '100%'
 bgGrad.style.background = 'linear-gradient(to bottom, transparent 0%, black 90%)'
 bgAndGrad.appendChild(bgGrad)
 
-function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement, guestArea: HTMLElement } {
+type Team = 'ally' | 'enemy' | 'vas'
+
+function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: HTMLElement, heroSprite: HTMLImageElement, nameTag: HTMLElement, homePlaceholder: HTMLElement, onRemove: () => void, visualUnitTop: HTMLElement, guestArea: HTMLElement } {
   let unitAndArea = document.createElement('div')
   unitAndArea.style.display = 'flex'
   unitAndArea.style.flexDirection = 'row'
@@ -194,9 +196,36 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   let removeStatusListen = listenBus(uiEvents.rerender, () => {
     updateStatuses()
   })
+  let removeAnimStatusListen = listenBus(uiEvents.animate, async () => {
+    let anim = getCurrentAnim()
+    if (!anim) return
+    if (!anim.putsStatuses) {
+      return
+    }
+    await Ui.waitAnimStep('missile')
+    updateStatuses()
+  })
 
-  let removeAnimateApplyStatusListener = listenBus(uiEvents.animate,()=>{
-    // apply a status
+
+  let removeAnimateSelfInclictListener = listenBus(uiEvents.animate, async () => {
+    let anim = getCurrentAnim()
+    if (!anim) return
+    if (anim.behavior.kind != 'selfInflicted') return
+    if (anim.source != arg.unitId) return
+    let inflictImg = document.createElement('img')
+    inflictImg.src = anySprites[anim.behavior.extraSprite]
+    inflictImg.style.position = 'absolute'
+    if (arg.team == 'ally') {
+      inflictImg.style.left = '0px'
+    } else {
+      inflictImg.style.right = '0px'
+    }
+    guestAreaPlaceholder.appendChild(inflictImg)
+    await Ui.nextAnimFrame()
+    inflictImg.style.transition = `transform ${Ui.animationDurations.inflict}ms ease-in`
+    inflictImg.style.transform = 'translateY(50%)'
+    await Ui.waitAnimStep('halfStrike')
+    inflictImg.remove()
   })
 
   let heroSprite = document.createElement('img')
@@ -207,14 +236,9 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   heroSprite.draggable = false
 
   let guestAreaPlaceholder = document.createElement('div')
-  // guestAreaPlaceholder.style.display = 'flex'
-  // guestAreaPlaceholder.style.zIndex = '2'
-  // guestAreaPlaceholder.style.position = 'relative'
-  // guestAreaPlaceholder.style.border = '2px dashed transparent'
-  // guestAreaPlaceholder.style.borderRadius = '10px'
+  guestAreaPlaceholder.style.position = 'relative'
   guestAreaPlaceholder.style.width = '50%'
   guestAreaPlaceholder.style.height = 'auto'
-  // guestAreaPlaceholder.style.backgroundColor = 'red'
   unitAndArea.appendChild(guestAreaPlaceholder)
   function indicateSelected() {
     if (!Ui.uiStateYep.lastUnitClicked) return
@@ -274,11 +298,12 @@ function createUnitAndArea(arg: { unitId: UnitId }): { unitAndArea: HTMLElement,
   })
 
   let onRemove = () => {
-    removeAnimateApplyStatusListener()
     removeHideWhenAnimatingListener()
     removeSelectedListener()
     removeStatusListen()
+    removeAnimStatusListen()
     removeAnimateToListener()
+    removeAnimateSelfInclictListener()
   }
 
   return {
@@ -408,32 +433,32 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     }
 
     let amt = dmgAnimForMe.amount
-      let percent = 0
-      if (enemyInPreviousMsg) {
-        enemyInPreviousMsg.health += amt
-        if (enemyInPreviousMsg.health < 1) {
-          percent = 0
-        } else {
-          percent = 100 * (enemyInPreviousMsg.health / enemyInPreviousMsg.maxHealth)
-        }
-      }
-      if (heroInPreviousMsg) {
-        heroInPreviousMsg.health += amt
-        if (heroInPreviousMsg.health < 1) {
-          percent = 0
-        } else {
-          percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
-        }
-      }
-      // percent = Math.floor(percent)
-      healthBarHealth.style.width = `${percent}%`
-      if (currentAnim.behavior.kind == 'melee') {
-        await Ui.waitAnimStep('halfStrike')
-        await Ui.waitAnimStep('halfStrike')
+    let percent = 0
+    if (enemyInPreviousMsg) {
+      enemyInPreviousMsg.health += amt
+      if (enemyInPreviousMsg.health < 1) {
+        percent = 0
       } else {
-        await Ui.waitAnimStep('seeResult')
+        percent = 100 * (enemyInPreviousMsg.health / enemyInPreviousMsg.maxHealth)
       }
-    
+    }
+    if (heroInPreviousMsg) {
+      heroInPreviousMsg.health += amt
+      if (heroInPreviousMsg.health < 1) {
+        percent = 0
+      } else {
+        percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
+      }
+    }
+    // percent = Math.floor(percent)
+    healthBarHealth.style.width = `${percent}%`
+    if (currentAnim.behavior.kind == 'melee') {
+      await Ui.waitAnimStep('halfStrike')
+      await Ui.waitAnimStep('halfStrike')
+    } else {
+      await Ui.waitAnimStep('seeResult')
+    }
+
   })
 
   let onRemoveBattleBar = () => {
@@ -447,7 +472,7 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   }
 }
 
-async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { elemToAnimate: HTMLElement, destination: HTMLElement, destTeam: 'enemy' | 'vas' | 'ally' }) {
+async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { elemToAnimate: HTMLElement, destination: HTMLElement, destTeam: Team }) {
   const { top: top1, left: left1 } = destination.getBoundingClientRect()
   const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
   let topDiff = top1 - top2
@@ -461,7 +486,7 @@ async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { ele
 }
 
 export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) {
-  let unitHolder = createUnitAndArea({ unitId: playerInClient.unitId })
+  let unitHolder = createUnitAndArea({ unitId: playerInClient.unitId, team: 'ally' })
   unitHolder.nameTag.textContent = playerInClient.displayName
   unitHolder.heroSprite.src = heroSpriteFromClass(playerInClient.class)
 
@@ -498,7 +523,7 @@ export function getCurrentAnim(): BattleAnimation | undefined {
 }
 
 export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
-  let unitHolder = createUnitAndArea({ unitId: enemyInClient.unitId })
+  let unitHolder = createUnitAndArea({ unitId: enemyInClient.unitId, team: 'enemy' })
   unitHolder.nameTag.textContent = enemyInClient.displayName
   unitHolder.heroSprite.src = enemySprites[enemyInClient.template.id]
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
@@ -595,7 +620,7 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
 }
 
 export function putVas(arg: { uiVas: Logic.VisualActionSourceInClient }) {
-  let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id })
+  let unitHolder = createUnitAndArea({ unitId: arg.uiVas.id, team: 'vas' })
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
   unitHolder.heroSprite.src = anySprites[arg.uiVas.sprite]
   unitHolder.nameTag.textContent = arg.uiVas.displayName
@@ -1229,9 +1254,10 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  changeScene(added.player, 'soloTrain2')
-  equipItem(added.player, 'bow')
-  equipItem(added.player, 'potion')
+  // changeScene(added.player, 'soloTrain3')
+  // equipItem(added.player, 'poisonDart')
+  // equipItem(added.player, 'fireStaff')
+  // equipItem(added.player, 'thiefCloak')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
