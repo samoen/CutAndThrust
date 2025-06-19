@@ -1163,14 +1163,15 @@ function updateVasButtons() {
     vasButtons.appendChild(vasActionButton)
   }
   for (let convoResponse of Ui.selectedVasResponsesToShow2()) {
-    let vasActionButton = document.createElement('button')
-    vasButtonStyle(vasActionButton)
-    vasActionButton.textContent = convoResponse.responseText
-    vasActionButton.addEventListener('click', () => {
+    let vasResponseButton = document.createElement('button')
+    vasButtonStyle(vasResponseButton)
+    vasResponseButton.textContent = convoResponse.responseText
+    vasResponseButton.addEventListener('click', () => {
       Ui.chooseVasResponse(convoResponse)
+      Ui.ensureSelectedUnit()
       dispatchBus(uiEvents.rerender)
     })
-    vasButtons.appendChild(vasActionButton)
+    vasButtons.appendChild(vasResponseButton)
   }
 }
 let itemSlotButtons = document.createElement('div')
