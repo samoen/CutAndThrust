@@ -97,132 +97,140 @@ import type { AnySprite, LandscapeImage } from './utils';
 import type { StatusId } from './statuses';
 
 export const enemySprites: Record<EnemyTemplateId, string> = {
-	goblin: spearman,
-	rat: rat,
-	darter: spearman,
-	orc: grunt,
-	troll: troll,
-	fireGremlin: fireghost
+  goblin: spearman,
+  rat: rat,
+  darter: spearman,
+  orc: grunt,
+  troll: troll,
+  fireGremlin: fireghost
 };
 
-export function getSlotImage(item:Item): string {
-    if(!item.visualBase){
-        if(item.slot == 'weapon')return fistSlot
-        if(item.slot == 'body')return tunicSlot
-        if(item.slot == 'utility')return bombSlot
-    }
-    let id = item.visualBase
-	if (id == 'club') return clubSlot;
-	if (id == 'dagger') return daggerSlot;
-	if (id == 'staff') return magicStaffSlot;
-	if (id == 'bomb') return bombSlot;
-	if (id == 'bow') return bowSlot;
-	if (id == 'dart') return dartSlot;
-	if (id == 'necklace') return ankhSlot;
-	if (id == 'cloak') return cloakSlot;
-	if (id == 'healer') return potionSlot;
-	if (id == 'lightArmor') return leatherSlot;
-	if (id == 'heavyArmor') return cuirassSlot;
-	if (item.id == 'wait') return waitSlot;
-	if (item.id == 'succumb') return skullSlot;
-	return blankSlot;
+export function getSlotImage(item: Item): string {
+  if (!item.visualBase) {
+    if (item.slot == 'weapon') return fistSlot
+    if (item.slot == 'body') return tunicSlot
+    if (item.slot == 'utility') return bombSlot
+  }
+  let id = item.visualBase
+  if (id == 'club') return clubSlot;
+  if (id == 'dagger') return daggerSlot;
+  if (id == 'staff') return magicStaffSlot;
+  if (id == 'bomb') return bombSlot;
+  if (id == 'bow') return bowSlot;
+  if (id == 'dart') return dartSlot;
+  if (id == 'necklace') return ankhSlot;
+  if (id == 'cloak') return cloakSlot;
+  if (id == 'healer') return potionSlot;
+  if (id == 'lightArmor') return leatherSlot;
+  if (id == 'heavyArmor') return cuirassSlot;
+  if (item.id == 'wait') return waitSlot;
+  if (item.id == 'succumb') return skullSlot;
+  return blankSlot;
 }
 
 export function getHeroPortrait(className: string): string {
-	if (className == 'peasant') return peasantPortrait;
-	if (className == 'thief') return thiefPortrait;
-	if (className == 'rogue') return thiefPortrait;
-	if (className == 'swordsman') return swordsmanPortrait;
-	if (className == 'woodsman') return woodsmanPortrait;
-	if (className == 'bowman') return bowmanPortrait;
-	if (className == 'longbowman') return longbowmanPortrait;
-	if (className == 'ruffian') return ruffianPortrait;
-	if (className == 'thug') return thugPortrait;
-	if (className == 'heavy') return heavyInfantryPortrait;
-	if (className == 'mage') return magePortrait;
-	if (className == 'cleric') return whiteMagePortrait;
-	return peasantPortrait;
+  if (className == 'peasant') return peasantPortrait;
+  if (className == 'thief') return thiefPortrait;
+  if (className == 'rogue') return thiefPortrait;
+  if (className == 'swordsman') return swordsmanPortrait;
+  if (className == 'woodsman') return woodsmanPortrait;
+  if (className == 'bowman') return bowmanPortrait;
+  if (className == 'longbowman') return longbowmanPortrait;
+  if (className == 'ruffian') return ruffianPortrait;
+  if (className == 'thug') return thugPortrait;
+  if (className == 'heavy') return heavyInfantryPortrait;
+  if (className == 'mage') return magePortrait;
+  if (className == 'cleric') return whiteMagePortrait;
+  return peasantPortrait;
 }
 
 export function getPortrait(key: string): string {
-	if (key == 'grunt') return gruntPortrait;
-	if (key == 'lady') return ladyPortrait;
-	if (key == 'general') return generalPortrait;
-	return gruntPortrait;
+  if (key == 'grunt') return gruntPortrait;
+  if (key == 'lady') return ladyPortrait;
+  if (key == 'general') return generalPortrait;
+  return gruntPortrait;
 }
 
-export function getStatusImage(statusDataId:string): string {
-    if(statusDataId == 'poisoned')return greenDrip
-    if(statusDataId == 'rage')return rage
-    if(statusDataId == 'fervor')return rage
-    if(statusDataId == 'hidden')return hidden
-    if(statusDataId == 'blessed')return heal
-    if(statusDataId == 'protected')return shield
-    if(statusDataId == 'vulnerable')return noShield
-    return hidden
+export function getStatusImage(statusDataId: string): string {
+  if (statusDataId == 'poisoned') return greenDrip
+  if (statusDataId == 'rage') return rage
+  if (statusDataId == 'fervor') return rage
+  if (statusDataId == 'hidden') return hidden
+  if (statusDataId == 'blessed') return heal
+  if (statusDataId == 'protected') return shield
+  if (statusDataId == 'vulnerable') return noShield
+  return hidden
 };
 
 export function heroSpriteFromClass(className: string): string {
-	if (className == 'peasant') return peasant;
-	if (className == 'thief') return thief;
-	if (className == 'rogue') return rogue;
-	if (className == 'swordsman') return swordsman;
-	if (className == 'ruffian') return ruffian;
-	if (className == 'thug') return thug;
-	if (className == 'woodsman') return woodsman;
-	if (className == 'bowman') return bowman;
-	if (className == 'longbowman') return longbowman;
-	if (className == 'mage') return mage;
-	if (className == 'heavy') return heavyInfantry;
-	if (className == 'cleric') return whiteMage;
-	return peasant;
+  if (className == 'peasant') return peasant;
+  if (className == 'thief') return thief;
+  if (className == 'rogue') return rogue;
+  if (className == 'swordsman') return swordsman;
+  if (className == 'ruffian') return ruffian;
+  if (className == 'thug') return thug;
+  if (className == 'woodsman') return woodsman;
+  if (className == 'bowman') return bowman;
+  if (className == 'longbowman') return longbowman;
+  if (className == 'mage') return mage;
+  if (className == 'heavy') return heavyInfantry;
+  if (className == 'cleric') return whiteMage;
+  return peasant;
 }
 
 export const anySprites: Record<AnySprite, string> = {
-	arrow: arrow,
-	bomb: bomb,
-	smoke: smoke,
-	shield: shield,
-	flame: flame,
-	heal: heal,
-	poison: greenDrip,
-	skull: skull,
-	castle: lighthouse,
-	forest: forest,
-	stoneDoor: stoneDoor,
-	portal: portal,
-	signpost: signpost,
-	temple: temple,
-	club: club,
-	bag: bag,
-	box: box,
-	whiteRing: whiteRing,
-	scarecrow: scarecrow,
-	dagger: dagger,
-	bow: bow,
-	staff: staff,
-	necklace: ankhNecklace,
-	pendant: pendant,
-	potion: potion,
-	altar: altar,
-	bombPadded: bombpad,
-	armorStand: armor,
-	general: general,
-	spectre: spectre,
-	druid: druid,
-	lady: lady,
-	necromancer: necromancer
+  arrow: arrow,
+  bomb: bomb,
+  smoke: smoke,
+  shield: shield,
+  flame: flame,
+  heal: heal,
+  poison: greenDrip,
+  skull: skull,
+  castle: lighthouse,
+  forest: forest,
+  stoneDoor: stoneDoor,
+  portal: portal,
+  signpost: signpost,
+  temple: temple,
+  club: club,
+  bag: bag,
+  box: box,
+  whiteRing: whiteRing,
+  scarecrow: scarecrow,
+  dagger: dagger,
+  bow: bow,
+  staff: staff,
+  necklace: ankhNecklace,
+  pendant: pendant,
+  potion: potion,
+  altar: altar,
+  bombPadded: bombpad,
+  armorStand: armor,
+  general: general,
+  spectre: spectre,
+  druid: druid,
+  lady: lady,
+  necromancer: necromancer
 };
 
 export function getLandscape(key: LandscapeImage): string {
-	if (key == 'plains') {
-		return plainsLandscape;
-	} else if (key == 'castle') {
-		return castleLandscape;
-	} else if (key == 'grimForest') {
-		return grimForestLandscape;
-	} else if (key == 'bridge') {
-		return bridgeLandscape;
-	}
-	return plainsLandscape;
+  if (key == 'plains') {
+    return plainsLandscape;
+  } else if (key == 'castle') {
+    return castleLandscape;
+  } else if (key == 'grimForest') {
+    return grimForestLandscape;
+  } else if (key == 'bridge') {
+    return bridgeLandscape;
+  }
+  return plainsLandscape;
 }
+
+export function prefetchImages() {
+  const img = new Image()
+  img.src = castleLandscape
+  img.src = grimForestLandscape
+}
+
+prefetchImages()
