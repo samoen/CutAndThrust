@@ -173,17 +173,12 @@ function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: 
   statuses.style.zIndex = '2';
   outerHeroSprite.appendChild(statuses)
 
-  function updateStatuses() {
+  function updateStatuses(msg: MessageFromServer | undefined) {
     statuses.replaceChildren()
-    if (!Ui.uiStateYep.lastMsgFromServer) return
-    let statusStates: StatusState[] = []
-    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == arg.unitId)
-    if (enemy) {
-      statusStates = enemy.statuses
-    }
-    if (arg.unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
-      statusStates = Ui.uiStateYep.lastMsgFromServer.yourInfo.statuses
-    }
+    if (!msg) return
+    let entity = Ui.getEntity(arg.unitId, msg)
+    if (!entity) return
+    let statusStates: StatusState[] = entity.statuses
     for (let s of statusStates) {
       let status = document.createElement('img')
       status.style.display = 'flex'
@@ -192,9 +187,9 @@ function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: 
       statuses.appendChild(status)
     }
   }
-  updateStatuses()
+  updateStatuses(Ui.uiStateYep.lastMsgFromServer)
   let removeStatusListen = listenBus(uiEvents.rerender, () => {
-    updateStatuses()
+    updateStatuses(Ui.uiStateYep.lastMsgFromServer)
   })
   let removeAnimStatusListen = listenBus(uiEvents.animate, async () => {
     let anim = getCurrentAnim()
@@ -202,8 +197,19 @@ function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: 
     if (!anim.putsStatuses) {
       return
     }
-    await Ui.waitAnimStep('missile')
-    updateStatuses()
+    let mePut = anim.putsStatuses.find(p => p.target == arg.unitId)
+    if (!mePut) return
+    let entity = Ui.getEntity(arg.unitId, Ui.uiStateYep.previousMsgFromServer)
+    if (!entity) return
+    if (mePut.remove) {
+      entity.statuses = entity.statuses.filter(s => s.statusId != mePut.statusId)
+    } else {
+      if (!entity.statuses.find(s => s.statusId == mePut.statusId)) {
+        entity.statuses.push({ hId: anim.triggeredBy, statusId: mePut.statusId, count: mePut.count ?? 1 })
+      }
+    }
+    await Ui.waitToImpact(anim)
+    updateStatuses(Ui.uiStateYep.previousMsgFromServer)
   })
 
 
@@ -579,7 +585,6 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     if (!anim) return
     if (!anim.alsoModifiesAggro) return
     await Ui.waitToImpact(anim)
-
     if (!Ui.uiStateYep.previousMsgFromServer) return
     let targeted = anim.alsoModifiesAggro.find(a => a.target == enemyInClient.unitId)
     if (!targeted) return
@@ -587,8 +592,9 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     if (!forLocalHero) return
     let enemyFromPrev = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == enemyInClient.unitId)
     if (!enemyFromPrev) return
-
     enemyFromPrev.myAggro += forLocalHero.amount
+    if (enemyFromPrev.myAggro > 100) enemyFromPrev.myAggro = 100
+    if (enemyFromPrev.myAggro < 0) enemyFromPrev.myAggro = 0
     aggro.style.width = `${enemyFromPrev.myAggro}%`
   })
 

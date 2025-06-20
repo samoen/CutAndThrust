@@ -52,7 +52,6 @@ export type ConvoState = {
 
 export type UIVas = VisualActionSourceInClient & { actionsInClient: GameActionSentToClient[] };
 export let waitingForMyAnimation = false;
-export let allVisualUnitProps: VisualUnitProps[] = [];
 export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
@@ -63,6 +62,16 @@ export const uiStateYep = {
   lastMsgFromServer: undefined as MessageFromServer | undefined,
   previousMsgFromServer: undefined as MessageFromServer | undefined,
   currentAnimIndex: -1,
+}
+export type Entity = PlayerInClient | EnemyInClient
+export function getEntity(unitId: UnitId, msg: MessageFromServer | undefined): Entity | undefined {
+  if (!msg) return undefined
+  if (msg.yourInfo.unitId == unitId) {
+    return msg.yourInfo
+  }
+  let enemy = msg.enemiesInScene.find(e => e.unitId == unitId)
+  if (enemy) return enemy
+  return undefined
 }
 
 export function vasesToShow2(): VisualActionSourceInClient[] {
@@ -258,15 +267,6 @@ export function selectedVasResponsesToShow2(): ConversationResponse[] {
   });
 }
 
-export function updateUnit(index: UnitId, run: (vup: VisualUnitProps) => void) {
-  allVisualUnitProps.map((p, j) => {
-    if (index == p.actual.entity.unitId) {
-      run(p);
-    }
-    return p;
-  });
-}
-
 export function syncVisualsToMsg() {
   const lastMsg = structuredClone(uiStateYep.lastMsgFromServer);
   if (!lastMsg) {
@@ -274,65 +274,6 @@ export function syncVisualsToMsg() {
     return
   }
   console.log('syncing to msg ', lastMsg)
-
-  const newVups: VisualUnitProps[] = [];
-
-  newVups.push({
-    sprite: heroSpriteFromClass(lastMsg.yourInfo.class),
-    portrait: getHeroPortrait(lastMsg.yourInfo.class),
-    actual: {
-      kind: 'player',
-      entity: lastMsg.yourInfo
-    },
-    actionsThatCanTargetMe: lastMsg.itemActions.filter(
-      (a) => a.associateWithUnit == lastMsg.yourInfo.unitId
-    )
-  } satisfies VisualUnitProps);
-
-  for (const e of lastMsg.enemiesInScene) {
-    const heroSpecifics: HeroSpecificEnemyState[] = [];
-    for (const ag of e.aggros) {
-      const find = e.statuses.filter((s) => s.hId == ag.hId);
-      const stsForHero: StatusState[] = [];
-      if (find) {
-        for (const s of find) {
-          stsForHero.push({
-            statusId: s.statusId,
-            count: s.count
-          });
-        }
-      }
-      let findPlayer: PlayerInClient | undefined = undefined;
-      if (lastMsg.yourInfo.unitId == ag.hId) {
-        findPlayer = lastMsg.yourInfo;
-      } else {
-        findPlayer = lastMsg.otherPlayers.find((p) => p.unitId == ag.hId);
-      }
-
-      if (findPlayer) {
-        heroSpecifics.push({
-          hName: findPlayer.displayName,
-          agg: ag.agg,
-          sts: stsForHero
-        });
-      }
-    }
-
-    newVups.push({
-      sprite: enemySprites[e.template.id],
-      portrait: e.template.portrait
-        ? getPortrait(e.template.portrait)
-        : enemySprites[e.template.id],
-      actual: {
-        kind: 'enemy',
-        entity: e,
-        heroSpecificStates: heroSpecifics
-      },
-      actionsThatCanTargetMe: lastMsg.itemActions.filter((a) => a.associateWithUnit == e.unitId)
-    } satisfies VisualUnitProps);
-  }
-
-  allVisualUnitProps = newVups;
 
   for (const vas of lastMsg.visualActionSources) {
     syncConvoStateToVas(vas);
@@ -408,102 +349,6 @@ export function changeVasLocked(vId: VisualActionSourceId, unlock: boolean) {
   convoStateForEachVAS = cs
 }
 
-export function handleDamageAnimation(
-  anim: BattleAnimation,
-  strikeNumber: number,
-  oneShot = false
-): { died: UnitId[] } {
-  const result: { died: UnitId[] } = { died: [] };
-  if (anim.alsoDamages) {
-    for (const other of anim.alsoDamages) {
-      updateUnit(other.target, (vup) => {
-        let amt = other.amount.at(strikeNumber) ?? 0;
-        if (oneShot) {
-          amt = other.amount.reduce((a, b) => a + b, 0);
-        }
-        // if(singleStrike && other.strikes && other.strikes > 0)amt = amt / other.strikes
-        vup.actual.entity.health -= amt;
-        if (vup.actual.entity.health < 1) vup.actual.entity.health = 0;
-        if (vup.actual.entity.health < 1) {
-          result.died.push(vup.actual.entity.unitId);
-        }
-      });
-    }
-  }
-  return result;
-}
-
-export function handleHealAnimations(anim: BattleAnimation) {
-  if (anim.alsoHeals) {
-    for (const other of anim.alsoHeals) {
-      updateUnit(other.target, (vup) => {
-        const amt = other.amount;
-        vup.actual.entity.health += amt;
-        if (vup.actual.entity.health > vup.actual.entity.maxHealth) vup.actual.entity.health = vup.actual.entity.maxHealth;
-      });
-    }
-  }
-}
-
-export function handleModAggros(anim: BattleAnimation, myId: HeroId) {
-  if (anim.alsoModifiesAggro) {
-    for (const other of anim.alsoModifiesAggro) {
-      const findMyAggroMod = other.forHeros.find((fh) => fh.hId == myId);
-
-      if (findMyAggroMod) {
-        updateUnit(other.target, (vup) => {
-          if (vup.actual.kind == 'enemy') {
-            vup.actual.entity.myAggro += findMyAggroMod.amount;
-            if (vup.actual.entity.myAggro > 100) vup.actual.entity.myAggro = 100;
-            if (vup.actual.entity.myAggro < 0) vup.actual.entity.myAggro = 0;
-          }
-        });
-      }
-    }
-  }
-}
-
-export function handlePutsStatuses(anim: BattleAnimation) {
-  if (anim.putsStatuses) {
-    for (const ps of anim.putsStatuses) {
-      updateUnit(ps.target, (vup) => {
-        if (ps.remove) {
-          vup.actual.entity.statuses = vup.actual.entity.statuses.filter(
-            (s) => s.statusId != ps.statusId
-          );
-        } else {
-          if (ps.count) {
-            if (vup.actual.kind == 'enemy') {
-              const found = vup.actual.entity.statuses.find(
-                (s) => s.statusId == ps.statusId && s.hId == anim.triggeredBy
-              );
-              if (found) {
-                if (found.count < ps.count) {
-                  found.count = ps.count;
-                }
-              } else {
-                vup.actual.entity.statuses.push({
-                  count: ps.count,
-                  hId: anim.triggeredBy,
-                  statusId: ps.statusId
-                });
-              }
-            } else if (vup.actual.kind == 'player') {
-              const found = vup.actual.entity.statuses.find((s) => s.statusId == ps.statusId);
-              if (found) {
-                if (found.count < ps.count) {
-                  found.count = ps.count;
-                }
-              } else {
-                vup.actual.entity.statuses.push({ statusId: ps.statusId, count: ps.count });
-              }
-            }
-          }
-        }
-      });
-    }
-  }
-}
 export let animationsInProgress = false
 export async function choose(
   chosen: GameActionSentToClient
