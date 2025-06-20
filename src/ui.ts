@@ -463,16 +463,6 @@ export function handleModAggros(anim: BattleAnimation, myId: HeroId) {
   }
 }
 
-export function handleResetAggro(anim: BattleAnimation) {
-  if (!anim.noResetAggro) {
-    updateUnit(anim.source, (vup) => {
-      if (vup.actual.kind == 'enemy') {
-        vup.actual.entity.myAggro = 0;
-      }
-    });
-  }
-}
-
 export function handlePutsStatuses(anim: BattleAnimation) {
   if (anim.putsStatuses) {
     for (const ps of anim.putsStatuses) {
@@ -561,7 +551,7 @@ export async function choose(
       await waitAnimStep('seeResult')
     }
 
-    if(anim.behavior.kind == 'selfInflicted'){
+    if (anim.behavior.kind == 'selfInflicted') {
       await waitAnimStep('inflict')
     }
 
@@ -612,6 +602,18 @@ export async function nextAnimFrame() {
   let promRes = newPromWithRes()
   requestAnimationFrame(promRes.resolve)
   await promRes.prom
+}
+
+export async function waitToImpact(anim: BattleAnimation) {
+  if (anim.behavior.kind == 'missile') {
+    await waitAnimStep('missile')
+  }
+  if (anim.behavior.kind == 'melee') {
+    await waitAnimStep('meleeThere')
+  }
+  if (anim.behavior.kind == 'center') {
+    await waitAnimStep('toCenter')
+  }
 }
 
 export type PromWithRes = { prom: Promise<void>, resolve: () => void }

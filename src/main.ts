@@ -550,28 +550,46 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
   aggroBar.style.border = '2px solid black';
   battleBar.bars.appendChild(aggroBar)
 
-  function getMyAggro() {
-    if (!Ui.uiStateYep.lastMsgFromServer) return 0
-    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == enemyInClient.unitId)
-    if (!vu) return 0
-    return vu.myAggro
-  }
   let aggro = document.createElement('div')
-  aggro.style.width = `${getMyAggro()}%`
   aggro.style.backgroundColor = 'purple';
   aggro.style.transition = 'width 0.2s ease-in-out';
   aggro.style.height = '100%';
   aggroBar.appendChild(aggro)
+  syncAggro()
   let removeAggroListener = listenBus(uiEvents.rerender, () => {
-    aggro.style.width = `${getMyAggro()}%`
+    syncAggro()
   })
+  function syncAggro() {
+    if (!Ui.uiStateYep.lastMsgFromServer) return 0
+    let vu = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == enemyInClient.unitId)
+    if (!vu) return 0
+    aggro.style.width = `${vu.myAggro}%`
+  }
 
-  let removeAnimateAggroListener = listenBus(uiEvents.animate, async () => {
+  let removeDepleteAggroListener = listenBus(uiEvents.animate, async () => {
     let anim = getCurrentAnim()
     if (!anim) return
     if (anim.noResetAggro) return
     if (anim.source != enemyInClient.unitId) return
     aggro.style.width = `0%`
+  })
+
+  let removeAnimateAggroListener = listenBus(uiEvents.animate, async () => {
+    let anim = getCurrentAnim()
+    if (!anim) return
+    if (!anim.alsoModifiesAggro) return
+    await Ui.waitToImpact(anim)
+
+    if (!Ui.uiStateYep.previousMsgFromServer) return
+    let targeted = anim.alsoModifiesAggro.find(a => a.target == enemyInClient.unitId)
+    if (!targeted) return
+    let forLocalHero = targeted.forHeros.find(f => f.hId == Ui.uiStateYep.previousMsgFromServer!.yourInfo.unitId)
+    if (!forLocalHero) return
+    let enemyFromPrev = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == enemyInClient.unitId)
+    if (!enemyFromPrev) return
+
+    enemyFromPrev.myAggro += forLocalHero.amount
+    aggro.style.width = `${enemyFromPrev.myAggro}%`
   })
 
   let removeDieListener = listenBus(uiEvents.animate, async () => {
@@ -610,6 +628,7 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     removeDieListener()
     removeUpdateUnitListener()
     removeAnimateAggroListener()
+    removeDepleteAggroListener()
     battleBar.onRemoveBattleBar()
     removeAggroListener()
     unitHolder.unitAndArea.remove()
@@ -1285,7 +1304,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain3')
+  // changeScene(added.player, 'armory')
   // equipItem(added.player, 'bomb')
   // equipItem(added.player, 'club')
   // equipItem(added.player, 'thiefCloak')
