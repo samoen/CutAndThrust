@@ -12,7 +12,8 @@ import {
   spawnEnemy,
   type EnemyStatuses,
   type ActiveEnemy,
-  checkEnemyDeath
+  checkEnemyDeath,
+  enemyTemplates
 } from './enemies';
 import {
   items,
@@ -173,27 +174,44 @@ export function updatePlayerActions(player: Player) {
   const scene = getSceneDataSimple(player.currentUniqueSceneId.dataId);
 
   player.devActions = [];
-  if (scene.actions) {
-    scene.actions(player);
+  if(scene.hasBattleTesting){
+    for (const item of items) {
+      player.devActions.push({
+        buttonText: `Equip ${item.id}`,
+        devAction() {
+          equipItem(player, item.id);
+        },
+        associateWithUnit: player.unitId,
+      });
+    }
+    for (const t of enemyTemplates) {
+      player.devActions.push({
+        buttonText: `Spawn ${t.id}`,
+        devAction() {
+          const e: EnemyForSpawning = { template: t.id as EnemyTemplateId };
+          spawnEnemy(e, player.currentUniqueSceneId, player.unitId);
+        },
+        associateWithUnit: player.unitId
+      });
+    }
+    player.devActions.push({
+      buttonText: 'Give up',
+      associateWithUnit: player.unitId,
+      devAction() {
+        player.health = 0
+      },
+    })
   }
-  player.devActions.push({
-    buttonText: 'Give up',
-    associateWithUnit: player.unitId,
-    devAction() {
-      player.health = 0
-    },
-  })
 
   player.vasActions = [];
   player.visualActionSources = [];
   const sceneEnemies = enemiesInScene(player.currentUniqueSceneId);
-  if (!sceneEnemies.length) {
-    if (scene.vases) {
-      for (const vas of scene.vases) {
-        player.visualActionSources.push(vas);
-        const acts = getValidGameActionsFromVas(vas, player);
-        player.vasActions.push(...acts);
-      }
+  if (scene.vases) {
+    for (const vas of scene.vases) {
+      if (!vas.showDuringBattle && sceneEnemies.length) continue
+      player.visualActionSources.push(vas);
+      const acts = getValidGameActionsFromVas(vas, player);
+      player.vasActions.push(...acts);
     }
   }
 }
@@ -586,7 +604,7 @@ function handleStatusEffects(on: BattleEventEntity, playerTriggered: Player) {
             battleAnimation: {
               triggeredBy: playerTriggered.unitId,
               source: on.entity.unitId,
-              alsoDamages: [{ target: on.entity.unitId, amount: [dmg], causedDeath:on.entity.health < 1 }],
+              alsoDamages: [{ target: on.entity.unitId, amount: [dmg], causedDeath: on.entity.health < 1 }],
               behavior: { kind: 'selfInflicted', extraSprite: statusData.eachTurnSprite },
               noResetAggro: true,
             }
@@ -940,11 +958,11 @@ function processBattleEvent(battleEvent: BattleEvent, player: Player) {
         //     causedDeath: healthModifyEvent.entity.health < 1
         //   };
         // } else {
-          damageAnimations.push({
-            target: healthModifyEvent.entity.unitId,
-            amount: r.dmgDone,
-            causedDeath: healthModifyEvent.entity.health < 1
-          });
+        damageAnimations.push({
+          target: healthModifyEvent.entity.unitId,
+          amount: r.dmgDone,
+          causedDeath: healthModifyEvent.entity.health < 1
+        });
         // }
       }
     }
@@ -1147,6 +1165,7 @@ export function convertUnlockableActionsToClient(
 
 export type VisualActionSource = {
   unitId: VisualActionSourceId;
+  showDuringBattle?: boolean;
   displayName: string;
   sprite: AnySprite;
   portrait?: string;

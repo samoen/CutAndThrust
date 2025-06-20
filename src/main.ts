@@ -270,7 +270,16 @@ function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: 
     let destinationUnitElement = intraSyncUnits.find(ue => ue.unitId == currentAnim.animateTo)
     if (!destinationUnitElement) return
     // animate to unit
-    await animateUnitToUnit({ elemToAnimate: visualUnitTop, destination: destinationUnitElement.element, destTeam: destinationUnitElement.kind })
+    const { top: top1, left: left1 } = destinationUnitElement.element.getBoundingClientRect()
+    const { top: top2, left: left2 } = visualUnitTop.getBoundingClientRect()
+    let topDiff = top1 - top2
+    let leftDiff = left1 - left2
+    if (destinationUnitElement.kind === 'ally') {
+      leftDiff += destinationUnitElement.element.offsetWidth / 2
+    }
+    visualUnitTop.style.transition = `transform ${Ui.animationDurations.meleeThere}ms ease`;
+    visualUnitTop.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
+    await Ui.waitAnimStep('meleeThere')
 
     // strikes
     if (currentAnim.alsoDamages) {
@@ -290,11 +299,16 @@ function createUnitAndArea(arg: { unitId: UnitId, team: Team }): { unitAndArea: 
       }
     }
 
-    if (currentAnim.behavior.kind == 'travel') return
+    if (currentAnim.behavior.kind == 'travel') {
+      visualUnitTop.style.transform = 'none'
+      visualUnitTop.style.transition = 'none'
+      return
+    }
 
     // back again
     visualUnitTop.style.transform = 'none'
-    Ui.waitAnimStep('meleeThere')
+    await Ui.waitAnimStep('meleeThere')
+    visualUnitTop.style.transition = 'none'
   })
 
   let onRemove = () => {
@@ -472,19 +486,6 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   }
 }
 
-async function animateUnitToUnit({ elemToAnimate, destination, destTeam }: { elemToAnimate: HTMLElement, destination: HTMLElement, destTeam: Team }) {
-  const { top: top1, left: left1 } = destination.getBoundingClientRect()
-  const { top: top2, left: left2 } = elemToAnimate.getBoundingClientRect()
-  let topDiff = top1 - top2
-  let leftDiff = left1 - left2
-  if (destTeam === 'ally') {
-    leftDiff += destination.offsetWidth / 2
-  }
-  elemToAnimate.style.transition = `transform ${Ui.animationDurations.meleeThere}ms ease`;
-  elemToAnimate.style.transform = `translateX(${leftDiff}px) translateY(${topDiff}px)`
-  await Ui.waitAnimStep('meleeThere')
-}
-
 export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) {
   let unitHolder = createUnitAndArea({ unitId: playerInClient.unitId, team: 'ally' })
   unitHolder.nameTag.textContent = playerInClient.displayName
@@ -493,14 +494,23 @@ export function putHero({ playerInClient }: { playerInClient: PlayerInClient }) 
   let battleBar = createBattleBar({ unitId: playerInClient.unitId })
   unitHolder.visualUnitTop.appendChild(battleBar.bars)
 
-  let updateHero = () => {
+  function updateHero() {
     if (!Ui.uiStateYep.lastMsgFromServer) return
     unitHolder.heroSprite.src = heroSpriteFromClass(Ui.uiStateYep.lastMsgFromServer.yourInfo.class)
     unitHolder.nameTag.textContent = Ui.uiStateYep.lastMsgFromServer.yourInfo.displayName
-    unitHolder.visualUnitTop.style.transform = 'none'
-    unitHolder.visualUnitTop.style.transition = 'none'
+    // unitHolder.visualUnitTop.style.transform = 'none'
+    // unitHolder.visualUnitTop.style.transition = 'none'
   }
-  listenBus(uiEvents.rerender, () => {
+  let removeUpdateHeroListener = listenBus(uiEvents.rerender, () => {
+    updateHero()
+  })
+  let removeReskinListener = listenBus(uiEvents.animate, async () => {
+    let currentAnim = getCurrentAnim()
+    if (!currentAnim) return
+    if (!currentAnim.takesItem) return
+    if (!currentAnim.animateTo) return
+    if (currentAnim.source !== playerInClient.unitId) return
+    await Ui.waitAnimStep('meleeThere')
     updateHero()
   })
 
@@ -1138,6 +1148,26 @@ vasdPromptAndButtons.appendChild(vasButtons)
 listenBus(uiEvents.rerender, () => {
   updateVasButtons()
 })
+
+let devActions = document.createElement('div')
+devActions.style.zIndex = '999'
+listenBus(uiEvents.rerender, () => {
+  if (!Ui.uiStateYep.lastMsgFromServer) return
+  devActions.replaceChildren()
+  devActions.remove()
+  if (Ui.uiStateYep.lastMsgFromServer.devActions.length < 1) return
+  for (let devAction of Ui.uiStateYep.lastMsgFromServer.devActions) {
+    let devActionButton = document.createElement('button')
+    devActionButton.textContent = devAction.buttonText
+    devActionButton.addEventListener('click', () => {
+      Ui.choose(devAction)
+      dispatchBus(uiEvents.rerender)
+    })
+    devActions.appendChild(devActionButton)
+  }
+  visual.appendChild(devActions)
+})
+
 function updateVasButtons() {
   if (!Ui.uiStateYep.lastUnitClicked) return
   if (!Ui.uiStateYep.lastMsgFromServer) return
@@ -1255,10 +1285,11 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'soloTrain0')
+  // changeScene(added.player, 'soloTrain3')
   // equipItem(added.player, 'bomb')
   // equipItem(added.player, 'club')
   // equipItem(added.player, 'thiefCloak')
+  // added.player.flags.add('killedGoblins')
   updatePlayerActions(added.player)
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg

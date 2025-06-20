@@ -7,7 +7,7 @@ import {
 	type EnemyTemplateId
 } from './enemies';
 import { equipItem, items, type ItemId } from './items';
-import type { EnemyForSpawning, VisualActionSource } from './logic';
+import type { EnemyForSpawning, VasActionData, VisualActionSource } from './logic';
 import type { HeroName, Flag, Player } from './users';
 
 export const scenesData: Scene[] = [];
@@ -49,7 +49,7 @@ export type Scene = {
 	spawnsEnemiesOnEnter?: EnemyForSpawning[];
 	spawnsEnemiesOnBattleJoin?: EnemyForSpawning[];
 	sceneTexts?: SceneTexts;
-	actions?: (player: Player) => void;
+  hasBattleTesting?:boolean;
 	vases?: VisualActionSource[];
 	solo?: boolean;
 	landscape?: LandscapeImage;
@@ -1177,29 +1177,9 @@ const armory: Scene = {
 	displayName: 'Dev Room',
 	healsOnEnter:true,
 	healsOnVictory:true,
+  hasBattleTesting: true,
 	sceneTexts: {
 		fallback: `Grab some gear!`
-	},
-	actions(player) {
-		for (const item of items) {
-			player.devActions.push({
-				buttonText: `Equip ${item.id}`,
-				devAction() {
-					equipItem(player, item.id);
-				},
-				associateWithUnit:player.unitId,
-			});
-		}
-		for (const t of enemyTemplates) {
-			player.devActions.push({
-				buttonText: `Spawn ${t.id}`,
-				devAction() {
-					const e: EnemyForSpawning = { template: t.id as EnemyTemplateId };
-					spawnEnemy(e, player.currentUniqueSceneId, player.unitId);
-				},
-				associateWithUnit:player.unitId
-			});
-		}
 	},
 	vases: [
 		{
