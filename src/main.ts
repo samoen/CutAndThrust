@@ -1310,7 +1310,7 @@ function refreshItemSlotButtons() {
 
 let added = addNewUser("You")
 if (added) {
-  // changeScene(added.player, 'armory')
+  // changeScene(added.player, 'forest')
   // equipItem(added.player, 'bomb')
   // equipItem(added.player, 'club')
   // equipItem(added.player, 'thiefCloak')
@@ -1319,7 +1319,7 @@ if (added) {
   let msg = buildNextMessage(added.player, added.player.unitId)
   Ui.uiStateYep.lastMsgFromServer = msg
   putHero({ playerInClient: msg.yourInfo })
-  Ui.syncVisualsToMsg()
+  Ui.addNewConvoStates()
   Ui.ensureSelectedUnit()
   dispatchBus(uiEvents.rerender)
 }

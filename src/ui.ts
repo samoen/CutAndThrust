@@ -5,44 +5,11 @@ import { handlePlayerAction, updateAllPlayerActions, updatePlayerActions, type C
 import { buildNextMessage, type MessageFromServer } from './messaging';
 import type { SceneDataId } from './scenes';
 import {
-  anySprites,
-  enemySprites,
-  getHeroPortrait,
-  getLandscape,
-  getPortrait,
   getSlotImage,
-  heroSpriteFromClass
 } from './assets';
 import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from './utils';
 import { dispatchBus, uiEvents } from './main';
 
-type HeroSpecificEnemyState = { hName: HeroName; agg: number; sts: StatusState[] };
-
-export type UnitDetails =
-  | {
-    kind: 'enemy';
-    entity: EnemyInClient;
-    heroSpecificStates: HeroSpecificEnemyState[];
-  }
-  | {
-    kind: 'player';
-    entity: PlayerInClient;
-  };
-
-export type VisualUnitProps = {
-  portrait: string;
-  sprite: string;
-  tilt?: boolean;
-  actual: UnitDetails;
-  actionsThatCanTargetMe: GameActionSentToClient[];
-};
-
-export type ProjectileProps = {
-  projectileImg: string;
-};
-
-export type Guest = VisualUnitProps | undefined;
-export type Projectile = undefined | ProjectileProps;
 export type ConvoState = {
   currentRetort: string;
   detectStep?: Flag;
@@ -50,9 +17,7 @@ export type ConvoState = {
   isLocked: boolean;
 };
 
-export type UIVas = VisualActionSourceInClient & { actionsInClient: GameActionSentToClient[] };
 export let waitingForMyAnimation = false;
-export let visualActionSources: UIVas[] = [];
 export let convoStateForEachVAS:
   Map<SceneDataId, Map<VisualActionSourceId, ConvoState>
   > = new Map();
@@ -86,11 +51,9 @@ export function vasesToShow2(): VisualActionSourceInClient[] {
 }
 
 export function resetSceneConvos(sceneId: SceneDataId) {
-  const vasesToReset = visualActionSources.filter((v) => v.scene == sceneId);
-  convoStateForEachVAS.delete(sceneId);
-  vasesToReset.forEach((v) => {
-    syncConvoStateToVas(v);
-  });
+  if (!uiStateYep.lastMsgFromServer) return
+  convoStateForEachVAS.delete(sceneId)
+  addNewConvoStates()
 }
 
 export function numberShownOnSlot(itemState: ItemState): string | undefined {
@@ -158,11 +121,6 @@ export const typedInventory =
 
     return inventory;
   }
-
-export type DetailWindow =
-  | { kind: 'vup'; entity: VisualUnitProps; unitId: UnitId; }
-  | { kind: 'vas'; entity: UIVas; unitId: UnitId }
-// | { kind: 'bg' };
 
 export function checkSelectedUnitValid(): UnitId | undefined {
   if (!uiStateYep.lastMsgFromServer) return undefined
@@ -242,9 +200,6 @@ export function selectedVisualActionSourceState2(): ConvoState | undefined {
   if (!uiStateYep.lastMsgFromServer) return undefined
   let selectedVas = vasesToShow2().find(vas => vas.id == uiStateYep.lastUnitClicked)
   if (!selectedVas) return undefined
-
-  // let selectedDetail2 = selectedDetail()
-  // if (!selectedDetail2 || selectedDetail2.kind != 'vas') return undefined;
   const csForE = convoStateForEachVAS.get(selectedVas.scene);
   if (!csForE) return undefined;
   const state = csForE.get(selectedVas.id);
@@ -267,72 +222,47 @@ export function selectedVasResponsesToShow2(): ConversationResponse[] {
   });
 }
 
-export function syncVisualsToMsg() {
-  const lastMsg = structuredClone(uiStateYep.lastMsgFromServer);
-  if (!lastMsg) {
-    console.log('tried to sync with bad msg');
-    return
-  }
-  console.log('syncing to msg ', lastMsg)
+export function addNewConvoStates() {
+  if (!uiStateYep.lastMsgFromServer) return
+  for (const vas of uiStateYep.lastMsgFromServer.visualActionSources) {
 
-  for (const vas of lastMsg.visualActionSources) {
-    syncConvoStateToVas(vas);
-  }
+    let sceneEntry = convoStateForEachVAS.get(vas.scene)
+    if (!sceneEntry) {
+      sceneEntry = new Map()
+    }
+    const existing = sceneEntry.get(vas.id)
+    if (existing && existing.detectStep == vas.detectStep) {
+      continue
+    }
 
-  const uiVases = lastMsg.visualActionSources.map((v) => {
-    const actionsFromVas = lastMsg.vasActions.filter((va) => va.associateWithUnit == v.id);
-    const uiVas = {
-      ...v,
-      actionsInClient: actionsFromVas
-    } satisfies UIVas;
-    return uiVas;
-  });
-
-  visualActionSources = uiVases;
-}
-
-export function syncConvoStateToVas(vas: VisualActionSourceInClient) {
-  let cs = structuredClone(convoStateForEachVAS)
-
-  let sceneEntry = cs.get(vas.scene);
-
-  if (!sceneEntry) {
-    sceneEntry = new Map();
-  }
-  const existing = sceneEntry.get(vas.id);
-
-  if (existing && existing.detectStep == vas.detectStep) {
-    return cs;
-  }
-
-  const startResponsesLocked = new Map<string, boolean>();
-  for (const resp of vas.responses) {
-    if (resp.responseId) {
-      if (resp.startsLocked) {
-        startResponsesLocked.set(resp.responseId, true);
-      } else {
-        startResponsesLocked.set(resp.responseId, false);
+    const startResponsesLocked = new Map<string, boolean>();
+    for (const resp of vas.responses) {
+      if (resp.responseId) {
+        if (resp.startsLocked) {
+          startResponsesLocked.set(resp.responseId, true);
+        } else {
+          startResponsesLocked.set(resp.responseId, false);
+        }
       }
     }
+
+    // default startsLocked handling
+    const startLocked = vas.startsLocked ?? false;
+
+    sceneEntry.set(vas.id, {
+      currentRetort: vas.startText,
+      detectStep: vas.detectStep,
+      lockedResponseHandles: startResponsesLocked,
+      isLocked: startLocked
+    });
+
+    convoStateForEachVAS.set(vas.scene, sceneEntry);
   }
-
-  // default startsLocked handling
-  const startLocked = vas.startsLocked ?? false;
-
-  sceneEntry.set(vas.id, {
-    currentRetort: vas.startText,
-    detectStep: vas.detectStep,
-    lockedResponseHandles: startResponsesLocked,
-    isLocked: startLocked
-  });
-
-  cs.set(vas.scene, sceneEntry);
-  convoStateForEachVAS = cs
 }
 
 export function changeVasLocked(vId: VisualActionSourceId, unlock: boolean) {
-  const vases = visualActionSources;
-  const found = vases.find((v) => v.id == vId);
+  if (!uiStateYep.lastMsgFromServer) return
+  const found = uiStateYep.lastMsgFromServer.visualActionSources.find((v) => v.id == vId);
   if (!found) return;
 
   let cs = convoStateForEachVAS
@@ -418,10 +348,9 @@ export async function choose(
     }
   }
 
-  // uiStateYep.lastMsgFromServer = msg
-  // await waitAnimStep(1)
-  syncVisualsToMsg()
+  addNewConvoStates()
   ensureSelectedUnit()
+  console.log(`syncing ui to`, msg)
   dispatchBus(uiEvents.rerender)
   animationsInProgress = false
 }
