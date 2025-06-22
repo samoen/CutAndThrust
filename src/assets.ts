@@ -89,7 +89,18 @@ import ankhNecklace from './assets/scenery/ankh-necklace.png';
 import magicStaffSlot from './assets/equipment/staff-magic-slot.png';
 import daggerSlot from './assets/equipment/dagger-human.png';
 import bowSlot from './assets/equipment/bow-short.png';
-
+import sidebar from './assets/ui/sidebar.png'
+import minimap from './assets/ui/minimap.png'
+import heart from './assets/ui/heart.png';
+import arrows from './assets/ui/arrows.png';
+import footy from './assets/ui/foot.png';
+import arm from './assets/ui/strong.png';
+import sword from './assets/ui/sword.png';
+import foot from './assets/ui/foot.png';
+import teeth from './assets/ui/teeth.png';
+import brain from './assets/ui/brain.png';
+import lightShield from './assets/ui/light-shield.png';
+import heavyShield from './assets/ui/heavy-shield.png';
 import type { EnemyTemplateId } from './enemies';
 import type { Item, ItemId, ItemState } from './items';
 import type { PlayerInClient } from './users';
@@ -178,7 +189,7 @@ export function heroSpriteFromClass(className: string): string {
   return peasant;
 }
 
-export const anySprites: Record<AnySprite, string> = {
+export const anySprites: Record<string, string> = {
   arrow: arrow,
   bomb: bomb,
   smoke: smoke,
@@ -211,7 +222,19 @@ export const anySprites: Record<AnySprite, string> = {
   spectre: spectre,
   druid: druid,
   lady: lady,
-  necromancer: necromancer
+  necromancer: necromancer,
+  sidebar: sidebar,
+  minimap: minimap,
+  heart: heart,
+  arrows: arrows,
+  footy: footy,
+  arm: arm,
+  sword: sword,
+  foot: foot,
+  teeth: teeth,
+  brain: brain,
+  lightShield: lightShield,
+  heavyShield: lightShield
 };
 
 export function getLandscape(key: LandscapeImage): string {
@@ -228,11 +251,11 @@ export function getLandscape(key: LandscapeImage): string {
 }
 
 export function prefetchImages() {
-  let toFetch = [castleLandscape, plainsLandscape, bridgeLandscape, grimForestLandscape ]
-  for(let i of Object.values(anySprites)){
+  let toFetch = [castleLandscape, plainsLandscape, bridgeLandscape, grimForestLandscape]
+  for (let i of Object.values(anySprites)) {
     toFetch.push(i)
   }
-  for(let i of toFetch){
+  for (let i of toFetch) {
     const img = new Image()
     img.src = i
   }

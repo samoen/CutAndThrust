@@ -6,18 +6,7 @@ import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
 import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
 import type { BattleAnimation, EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
-import sidebar from './assets/ui/sidebar.png'
-import minimap from './assets/ui/minimap.png'
-import heart from './assets/ui/heart.png';
-import arrows from './assets/ui/arrows.png';
-import footy from './assets/ui/foot.png';
-import arm from './assets/ui/strong.png';
-import sword from './assets/ui/sword.png';
-import foot from './assets/ui/foot.png';
-import teeth from './assets/ui/teeth.png';
-import brain from './assets/ui/brain.png';
-import lightShield from './assets/ui/light-shield.png';
-import heavyShield from './assets/ui/heavy-shield.png';
+
 import shieldHealth from './assets/ui/shield-health.png';
 import { equipItem } from './items'
 
@@ -795,11 +784,11 @@ selectedDetails.style.backgroundPosition = 'left top';
 selectedDetails.style.display = 'flex';
 selectedDetails.style.position = 'relative';
 selectedDetails.style.height = '30svh';
-selectedDetails.style.backgroundImage = `url(${sidebar})`
+selectedDetails.style.backgroundImage = `url(${anySprites.sidebar})`
 document.body.appendChild(selectedDetails)
 
 let selectedPortrait = document.createElement('div')
-selectedPortrait.style.backgroundImage = `url(${minimap})`
+selectedPortrait.style.backgroundImage = `url(${anySprites.minimap})`
 selectedPortrait.style.backgroundRepeat = 'no-repeat';
 selectedPortrait.style.backgroundSize = '100% 100%';
 selectedPortrait.style.minWidth = '100px';
@@ -949,7 +938,7 @@ function updateSelectedStats() {
   top.appendChild(statLineHealth)
 
   let heartImg = document.createElement('img')
-  heartImg.src = heart
+  heartImg.src = anySprites.heart
   statLineHealth.appendChild(heartImg)
 
   let healthDisplay = document.createElement('div')
@@ -962,7 +951,7 @@ function updateSelectedStats() {
     top.appendChild(statLineStrength)
 
     let strImg = document.createElement('img')
-    strImg.src = arm
+    strImg.src = anySprites.arm
     statLineStrength.appendChild(strImg)
 
     let strDisplay = document.createElement('div')
@@ -975,7 +964,7 @@ function updateSelectedStats() {
     top.appendChild(statLineAgi)
 
     let agiImg = document.createElement('img')
-    agiImg.src = foot
+    agiImg.src = anySprites.foot
     statLineAgi.appendChild(agiImg)
 
     let agiDisplay = document.createElement('div')
@@ -988,7 +977,7 @@ function updateSelectedStats() {
     top.appendChild(statLineMind)
 
     let mindImg = document.createElement('img')
-    mindImg.src = brain
+    mindImg.src = anySprites.brain
     statLineMind.appendChild(mindImg)
 
     let mindDisplay = document.createElement('div')
@@ -1001,7 +990,7 @@ function updateSelectedStats() {
     top.appendChild(statLineAggroGain)
 
     let aggroGainImg = document.createElement('img')
-    aggroGainImg.src = teeth
+    aggroGainImg.src = anySprites.teeth
     statLineAggroGain.appendChild(aggroGainImg)
 
     let aggroGainDisplay = document.createElement('div')
@@ -1031,7 +1020,7 @@ function updateSelectedStats() {
       stats.appendChild(lightArmorStatline)
 
       let lightArmorImg = document.createElement('img')
-      lightArmorImg.src = lightShield
+      lightArmorImg.src = anySprites.lightShield
       lightArmorStatline.appendChild(lightArmorImg)
 
       let lightArmorNum = document.createElement('div')
@@ -1044,7 +1033,7 @@ function updateSelectedStats() {
       stats.appendChild(heavyArmorStatline)
 
       let heavyArmorImg = document.createElement('img')
-      heavyArmorImg.src = heavyShield
+      heavyArmorImg.src = anySprites.heavyShield
       heavyArmorStatline.appendChild(heavyArmorImg)
 
       let heavyArmorNum = document.createElement('div')
@@ -1057,7 +1046,7 @@ function updateSelectedStats() {
       stats.appendChild(damagesStatline)
 
       let damagesImg = document.createElement('img')
-      damagesImg.src = sword
+      damagesImg.src = anySprites.sword
       damagesStatline.appendChild(damagesImg)
 
       let damagesNum = document.createElement('div')
@@ -1070,7 +1059,7 @@ function updateSelectedStats() {
       stats.appendChild(strikesStatline)
 
       let strikesImg = document.createElement('img')
-      strikesImg.src = arrows
+      strikesImg.src = anySprites.arrows
       strikesStatline.appendChild(strikesImg)
 
       let damagesNum = document.createElement('div')
@@ -1083,7 +1072,7 @@ function updateSelectedStats() {
       stats.appendChild(speedStatline)
 
       let speedImg = document.createElement('img')
-      speedImg.src = footy
+      speedImg.src = anySprites.footy
       speedStatline.appendChild(speedImg)
 
       let speedNum = document.createElement('div')

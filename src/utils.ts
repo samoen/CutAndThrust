@@ -1,5 +1,6 @@
 // This file is for stuff available to both the server and browser
 
+import { anySprites } from './assets';
 import type { ActiveEnemy, EnemyTemplate, EnemyTemplateId } from './enemies';
 import type { Item, ItemDamageData, ItemId, ItemState } from './items';
 import type { SceneDataId } from './scenes';
@@ -71,41 +72,7 @@ export type AggroModifierEvent = {
 	baseAmount: number;
 	forHeros: Player[];
 };
-
-export type AnySprite =
-	| 'castle'
-	| 'forest'
-	| 'stoneDoor'
-	| 'temple'
-	| 'portal'
-	| 'signpost'
-	| 'general'
-	| 'spectre'
-	| 'druid'
-	| 'lady'
-	| 'necromancer'
-	| 'arrow'
-	| 'necklace'
-	| 'bomb'
-	| 'bombPadded'
-	| 'potion'
-	| 'staff'
-	| 'dagger'
-	| 'altar'
-	| 'flame'
-	| 'heal'
-	| 'poison'
-	| 'smoke'
-	| 'shield'
-	| 'skull'
-	| 'club'
-	| 'pendant'
-	| 'bow'
-	| 'box'
-	| 'whiteRing'
-	| 'scarecrow'
-	| 'bag'
-	| 'armorStand';
+export type AnySprite = keyof typeof anySprites
 
 export type LandscapeImage = 'plains' | 'castle' | 'bridge' | 'grimForest';
 
