@@ -464,7 +464,6 @@ export function handlePlayerAction(player: Player, action: GameAction) {
   }
 
   pushHappening('----');
-  console.log('-----starting combat round----')
 
   let chosenBattleEvents: BattleEvent[] = []
 

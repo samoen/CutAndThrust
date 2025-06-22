@@ -318,7 +318,7 @@ export async function choose(
       await waitAnimStep('meleeThere')
       await waitAnimStep('meleeThere')
     }
-    if (anim.behavior.kind == 'travel' || anim.teleporting) {
+    if (anim.behavior.kind == 'travel') {
       await waitAnimStep('meleeThere')
     }
     if (anim.behavior.kind == 'center') {
