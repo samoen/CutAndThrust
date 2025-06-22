@@ -123,9 +123,6 @@ export function spawnEnemy(
 	const scene = scenesData.find((s) => s.sceneDataId == where.dataId);
 	if (!scene) return;
 	const playersInScene = activePlayersInScene(where);
-	if (!scene.solo) {
-		modifiedBaseHealth = modifiedEnemyHealth(modifiedBaseHealth, playersInScene.length);
-	}
 
 	// let modifiedBaseHealth = scenes.get(where)?.solo ? baseHealth : modifiedEnemyHealth(baseHealth)
 

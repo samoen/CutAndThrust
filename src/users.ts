@@ -37,10 +37,6 @@ export function addNewUser(heroName: string): { id: string; player: Player } | u
 
 	const player: Player = {
 		unitId: pId,
-		connectionState: {
-			con: undefined,
-			stream: undefined
-		},
 		displayName: heroName,
 		previousScene: startUnique,
 		lastCheckpoint: startUnique,
@@ -96,11 +92,6 @@ export type Flag =
 
 
 export type Player = {
-	connectionState: {
-		// ip: string | null;
-		con: ReadableStreamController<unknown> | undefined;
-		stream: ReadableStream | undefined;
-	};
 	previousScene: UniqueSceneIdenfitier;
 	lastCheckpoint: UniqueSceneIdenfitier;
 	itemActions: GameAction[];
@@ -173,12 +164,4 @@ export function activePlayersInScene(scene: UniqueSceneIdenfitier) {
 	const ap = activePlayers();
 	const apIs = ap.filter((usr) => deepEqual(usr.currentUniqueSceneId, scene));
 	return apIs;
-}
-
-export function cleanConnections() {
-	for (const p of activePlayers()) {
-		if (p.connectionState != null && !p.connectionState.stream?.locked) {
-			p.connectionState.con?.close();
-		}
-	}
 }

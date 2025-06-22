@@ -34,21 +34,6 @@ export type DataFirstLoad = {
 	userId?: string;
 };
 
-export type SignupResponse = {
-	alreadyConnected: boolean;
-	yourHeroName: string;
-	yourId: string;
-	needsAuth: string;
-};
-export function isSignupResponse(r: any): r is SignupResponse {
-	if (typeof r != 'object') return false;
-	if (!('alreadyConnected' in r)) return false;
-	if (!('yourHeroName' in r)) return false;
-	if (!('yourId' in r)) return false;
-	if (!('needsAuth' in r)) return false;
-	return true;
-}
-
 export type BattleEventEntity =
 	| { kind: 'player'; entity: Player }
 	| { kind: 'enemy'; entity: ActiveEnemy };

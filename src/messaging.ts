@@ -1,7 +1,6 @@
 import type {
 	AggroInClient,
 	BattleAnimation,
-	BattleEventEntity,
 	EnemyInClient,
 	EnemyStatusInClient,
 	GameActionSentToClient,
@@ -19,11 +18,7 @@ import {
 import { getSceneData } from './scenes';
 import type { StatusId } from './statuses';
 import {
-	activePlayers,
-	activePlayersInScene,
-	users,
 	type Flag,
-	type HeroName,
 	type Player,
 	type PlayerInClient
 } from './users';
@@ -35,8 +30,6 @@ export const recentHappenings: string[] = [];
 export type MessageFromServer = {
 	triggeredBy: HeroId;
 	yourInfo: PlayerInClient;
-	otherPlayers: PlayerInClient[];
-	userList: HeroName[];
 	sceneTexts: string[];
 	devActions: GameActionSentToClient[];
 	itemActions: GameActionSentToClient[];
@@ -76,31 +69,12 @@ export function buildNextMessage(forPlayer: Player, triggeredBy: HeroId): Messag
 			statuses: statusMapToStatusInClients(forPlayer.statuses),
 			class: comboFindClassFromInventory(forPlayer.inventory)
 		},
-		otherPlayers: activePlayersInScene(forPlayer.currentUniqueSceneId)
-			.filter((u) => u.unitId != forPlayer.unitId)
-			.map((u) => {
-				return {
-					unitId: u.unitId,
-					displayName: u.displayName,
-					health: u.health,
-					maxHealth: u.maxHealth,
-					agility: u.agility,
-					strength: u.strength,
-					mind:u.mind,
-					bonusStats:u.bonusStats,
-					inventory: u.inventory,
-					currentSceneDisplay: 'somewhere',
-					statuses: statusMapToStatusInClients(u.statuses),
-					class: comboFindClassFromInventory(u.inventory)
-				} satisfies PlayerInClient;
-			}),
 		sceneTexts: forPlayer.sceneTexts,
 		devActions: forPlayer.devActions.map((gameAction) => {
 			return {
 				buttonText: gameAction.buttonText
 			};
 		}),
-		userList: activePlayers().map((u) => u.displayName),
 		itemActions: forPlayer.itemActions.map((gameAction) =>
 			convertServerActionToClientAction(gameAction)
 		),

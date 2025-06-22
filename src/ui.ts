@@ -7,7 +7,7 @@ import type { SceneDataId } from './scenes';
 import {
   getSlotImage,
 } from './assets';
-import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, SignupResponse, StatusState, UnitId, VisualActionSourceId } from './utils';
+import type { BattleAnimation, EnemyInClient, GameActionSelected, GameActionSentToClient, HeroId, LandscapeImage, StatusState, UnitId, VisualActionSourceId } from './utils';
 import { dispatchBus, uiEvents } from './main';
 
 export type ConvoState = {

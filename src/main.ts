@@ -362,16 +362,9 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   healthBar.appendChild(healthBarHealth)
 
   function syncHealthToCurrent() {
-    if (!Ui.uiStateYep.lastMsgFromServer) return
-    // let lastMsgHps = getMsgHps(Ui.uiStateYep.lastMsgFromServer)
-    let percent = 0
-    if (unitId == Ui.uiStateYep.lastMsgFromServer.yourInfo.unitId) {
-      percent = 100 * Ui.uiStateYep.lastMsgFromServer.yourInfo.health / Ui.uiStateYep.lastMsgFromServer.yourInfo.maxHealth
-    }
-    let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
-    if (enemy) {
-      percent = 100 * enemy.health / enemy.maxHealth
-    }
+    let entity = Ui.getEntity(unitId, Ui.uiStateYep.lastMsgFromServer)
+    if (!entity) return
+    let percent = 100 * entity.health / entity.maxHealth
     healthBarHealth.style.width = `${percent}%`
   }
 
@@ -381,7 +374,6 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
   })
 
   let removeHealthLossListener = listenBus(uiEvents.animate, async () => {
-    if (!Ui.uiStateYep.previousMsgFromServer) return
     let currentAnim = getCurrentAnim()
     if (!currentAnim) return
     if (!currentAnim.alsoDamages) return
@@ -396,31 +388,17 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     if (currentAnim.behavior.kind == 'center') {
       await Ui.waitAnimStep('toCenter')
     }
-    let enemyInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
-    let heroInPreviousMsg = undefined
-    if (Ui.uiStateYep.previousMsgFromServer.yourInfo.unitId == unitId) {
-      heroInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.yourInfo
-    }
+    let entity = Ui.getEntity(unitId, Ui.uiStateYep.previousMsgFromServer)
+    if (!entity) return
 
     for (let amt of dmgAnimForMe.amount) {
       let percent = 0
-      if (enemyInPreviousMsg) {
-        enemyInPreviousMsg.health -= amt
-        if (enemyInPreviousMsg.health < 1) {
-          percent = 0
-        } else {
-          percent = 100 * (enemyInPreviousMsg.health / enemyInPreviousMsg.maxHealth)
-        }
+      entity.health -= amt
+      if (entity.health < 1) {
+        percent = 0
+      } else {
+        percent = 100 * (entity.health / entity.maxHealth)
       }
-      if (heroInPreviousMsg) {
-        heroInPreviousMsg.health -= amt
-        if (heroInPreviousMsg.health < 1) {
-          percent = 0
-        } else {
-          percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
-        }
-      }
-      // percent = Math.floor(percent)
       healthBarHealth.style.width = `${percent}%`
       if (currentAnim.behavior.kind == 'melee') {
         await Ui.waitAnimStep('halfStrike')
@@ -435,8 +413,8 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     let currentAnim = getCurrentAnim()
     if (!currentAnim) return
     if (!currentAnim.alsoHeals) return
-    let dmgAnimForMe = currentAnim.alsoHeals.find(ad => ad.target == unitId)
-    if (!dmgAnimForMe) return
+    let healAnimForMe = currentAnim.alsoHeals.find(ad => ad.target == unitId)
+    if (!healAnimForMe) return
     if (currentAnim.behavior.kind == 'melee') {
       await Ui.waitAnimStep('meleeThere')
     }
@@ -446,31 +424,17 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     if (currentAnim.behavior.kind == 'center') {
       await Ui.waitAnimStep('toCenter')
     }
-    let enemyInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.enemiesInScene.find(e => e.unitId == unitId)
-    let heroInPreviousMsg = undefined
-    if (Ui.uiStateYep.previousMsgFromServer.yourInfo.unitId == unitId) {
-      heroInPreviousMsg = Ui.uiStateYep.previousMsgFromServer.yourInfo
-    }
+    let entity = Ui.getEntity(unitId, Ui.uiStateYep.previousMsgFromServer)
+    if(!entity)return
 
-    let amt = dmgAnimForMe.amount
+    let amt = healAnimForMe.amount
     let percent = 0
-    if (enemyInPreviousMsg) {
-      enemyInPreviousMsg.health += amt
-      if (enemyInPreviousMsg.health < 1) {
-        percent = 0
+      entity.health += amt
+      if (entity.health > entity.maxHealth) {
+        percent = 100
       } else {
-        percent = 100 * (enemyInPreviousMsg.health / enemyInPreviousMsg.maxHealth)
+        percent = 100 * (entity.health / entity.maxHealth)
       }
-    }
-    if (heroInPreviousMsg) {
-      heroInPreviousMsg.health += amt
-      if (heroInPreviousMsg.health < 1) {
-        percent = 0
-      } else {
-        percent = 100 * (heroInPreviousMsg.health / heroInPreviousMsg.maxHealth)
-      }
-    }
-    // percent = Math.floor(percent)
     healthBarHealth.style.width = `${percent}%`
     if (currentAnim.behavior.kind == 'melee') {
       await Ui.waitAnimStep('halfStrike')
@@ -478,7 +442,6 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
     } else {
       await Ui.waitAnimStep('seeResult')
     }
-
   })
 
   let onRemoveBattleBar = () => {
