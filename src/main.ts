@@ -1,6 +1,7 @@
 import './style.css'
 import * as Ui from './ui'
 import * as Logic from './logic'
+import * as Assets from './assets'
 import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
@@ -9,8 +10,6 @@ import type { BattleAnimation, EnemyInClient, HeroId, StatusState, UnitId, Visua
 
 import shieldHealth from './assets/ui/shield-health.png';
 import { equipItem } from './items'
-
-document.querySelector<HTMLDivElement>('#loading')!.remove()
 
 export const uiEvents = {
   rerender: 'rerender',
@@ -1260,20 +1259,25 @@ function refreshItemSlotButtons() {
   }
 }
 
-let added = addNewUser("You")
-if (added) {
-  // changeScene(added.player, 'forest')
-  // equipItem(added.player, 'bomb')
-  // equipItem(added.player, 'club')
-  // equipItem(added.player, 'thiefCloak')
-  // added.player.flags.add('killedGoblins')
-  updatePlayerActions(added.player)
-  let msg = buildNextMessage(added.player, added.player.unitId)
-  Ui.uiStateYep.lastMsgFromServer = msg
-  putHero({ playerInClient: msg.yourInfo })
-  Ui.addNewConvoStates()
-  Ui.ensureSelectedUnit()
-  dispatchBus(uiEvents.rerender)
+async function start() {
+  await Assets.prefetchImages()
+  let added = addNewUser("You")
+  if (added) {
+    // changeScene(added.player, 'forest')
+    // equipItem(added.player, 'bomb')
+    // equipItem(added.player, 'club')
+    // equipItem(added.player, 'thiefCloak')
+    // added.player.flags.add('killedGoblins')
+    updatePlayerActions(added.player)
+    let msg = buildNextMessage(added.player, added.player.unitId)
+    Ui.uiStateYep.lastMsgFromServer = msg
+    putHero({ playerInClient: msg.yourInfo })
+    Ui.addNewConvoStates()
+    Ui.ensureSelectedUnit()
+    document.querySelector<HTMLDivElement>('#loading')!.remove()
+    dispatchBus(uiEvents.rerender)
+  }
 }
 
+start()
 

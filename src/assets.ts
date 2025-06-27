@@ -323,5 +323,3 @@ export async function prefetchImages() {
   await Promise.all(proms)
   console.log('images preloaded')
 }
-
-await prefetchImages()
