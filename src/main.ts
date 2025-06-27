@@ -4,7 +4,7 @@ import * as Logic from './logic'
 import { addNewUser, users, type PlayerCommonStats, type PlayerInClient } from './users'
 import { buildNextMessage, type MessageFromServer } from './messaging'
 import { changeScene, updatePlayerActions, type VisualActionSourceInClient } from './logic'
-import { anySprites, enemySprites, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
+import { anySprites, getEnemySprite, getHeroPortrait, getLandscape, getPortrait, getStatusImage, heroSpriteFromClass } from './assets'
 import type { BattleAnimation, EnemyInClient, HeroId, StatusState, UnitId, VisualActionSourceId } from './utils'
 
 import shieldHealth from './assets/ui/shield-health.png';
@@ -414,16 +414,16 @@ export function createBattleBar({ unitId }: { unitId: UnitId }): { bars: HTMLEle
       await Ui.waitAnimStep('toCenter')
     }
     let entity = Ui.getEntity(unitId, Ui.uiStateYep.previousMsgFromServer)
-    if(!entity)return
+    if (!entity) return
 
     let amt = healAnimForMe.amount
     let percent = 0
-      entity.health += amt
-      if (entity.health > entity.maxHealth) {
-        percent = 100
-      } else {
-        percent = 100 * (entity.health / entity.maxHealth)
-      }
+    entity.health += amt
+    if (entity.health > entity.maxHealth) {
+      percent = 100
+    } else {
+      percent = 100 * (entity.health / entity.maxHealth)
+    }
     healthBarHealth.style.width = `${percent}%`
     if (currentAnim.behavior.kind == 'melee') {
       await Ui.waitAnimStep('halfStrike')
@@ -493,7 +493,7 @@ export function getCurrentAnim(): BattleAnimation | undefined {
 export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
   let unitHolder = createUnitAndArea({ unitId: enemyInClient.unitId, team: 'enemy' })
   unitHolder.nameTag.textContent = enemyInClient.displayName
-  unitHolder.heroSprite.src = enemySprites[enemyInClient.template.id]
+  unitHolder.heroSprite.src = getEnemySprite(enemyInClient.template.id)
   unitHolder.heroSprite.style.transform = 'scaleX(-1)'
   unitHolder.homePlaceholder.style.order = '1'
 
@@ -579,7 +579,7 @@ export function putEnemy({ enemyInClient }: { enemyInClient: EnemyInClient }) {
     if (!Ui.uiStateYep.lastMsgFromServer) return
     let enemy = Ui.uiStateYep.lastMsgFromServer.enemiesInScene.find(eic => eic.unitId == enemyInClient.unitId)
     if (enemy) {
-      unitHolder.heroSprite.src = enemySprites[enemy.template.id]
+      unitHolder.heroSprite.src = getEnemySprite(enemy.template.id)
       unitHolder.nameTag.textContent = enemy.displayName
       return
     }
@@ -849,7 +849,7 @@ listenBus(uiEvents.rerender, () => {
     if (enemy.template.portrait) {
       portraitImg.src = getPortrait(enemy.template.portrait)
     } else {
-      portraitImg.src = enemySprites[enemy.template.id]
+      portraitImg.src = getEnemySprite(enemy.template.id)
     }
   }
 })

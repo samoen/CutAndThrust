@@ -106,90 +106,144 @@ import type { Item, ItemId, ItemState } from './items';
 import type { PlayerInClient } from './users';
 import type { AnySprite, LandscapeImage } from './utils';
 import type { StatusId } from './statuses';
+import { newPromWithRes } from './ui';
 
-export const enemySprites: Record<EnemyTemplateId, string> = {
-  goblin: spearman,
-  rat: rat,
-  darter: spearman,
-  orc: grunt,
-  troll: troll,
-  fireGremlin: fireghost
-};
+export type SpriteUrl = string
+export function getEnemySprite(templateId: EnemyTemplateId): SpriteUrl {
+  if (templateId == 'goblin') return anySprites.spearman
+  if (templateId == 'rat') return anySprites.rat
+  if (templateId == 'darter') return anySprites.spearman
+  if (templateId == 'orc') return anySprites.grunt
+  if (templateId == 'troll') return anySprites.troll
+  if (templateId == 'fireGremlin') return anySprites.fireghost
+  else return anySprites.troll
+
+}
 
 export function getSlotImage(item: Item): string {
   if (!item.visualBase) {
-    if (item.slot == 'weapon') return fistSlot
-    if (item.slot == 'body') return tunicSlot
-    if (item.slot == 'utility') return bombSlot
+    if (item.slot == 'weapon') return anySprites.fistSlot
+    if (item.slot == 'body') return anySprites.tunicSlot
+    if (item.slot == 'utility') return anySprites.bombSlot
   }
   let id = item.visualBase
-  if (id == 'club') return clubSlot;
-  if (id == 'dagger') return daggerSlot;
-  if (id == 'staff') return magicStaffSlot;
-  if (id == 'bomb') return bombSlot;
-  if (id == 'bow') return bowSlot;
-  if (id == 'dart') return dartSlot;
-  if (id == 'necklace') return ankhSlot;
-  if (id == 'cloak') return cloakSlot;
-  if (id == 'healer') return potionSlot;
-  if (id == 'lightArmor') return leatherSlot;
-  if (id == 'heavyArmor') return cuirassSlot;
-  if (item.id == 'wait') return waitSlot;
-  if (item.id == 'succumb') return skullSlot;
-  return blankSlot;
+  if (id == 'club') return anySprites.clubSlot;
+  if (id == 'dagger') return anySprites.daggerSlot;
+  if (id == 'staff') return anySprites.magicStaffSlot;
+  if (id == 'bomb') return anySprites.bombSlot;
+  if (id == 'bow') return anySprites.bowSlot;
+  if (id == 'dart') return anySprites.dartSlot;
+  if (id == 'necklace') return anySprites.ankhSlot;
+  if (id == 'cloak') return anySprites.cloakSlot;
+  if (id == 'healer') return anySprites.potionSlot;
+  if (id == 'lightArmor') return anySprites.leatherSlot;
+  if (id == 'heavyArmor') return anySprites.cuirassSlot;
+  if (item.id == 'wait') return anySprites.waitSlot;
+  if (item.id == 'succumb') return anySprites.skullSlot;
+  return anySprites.blankSlot;
 }
 
 export function getHeroPortrait(className: string): string {
-  if (className == 'peasant') return peasantPortrait;
-  if (className == 'thief') return thiefPortrait;
-  if (className == 'rogue') return thiefPortrait;
-  if (className == 'swordsman') return swordsmanPortrait;
-  if (className == 'woodsman') return woodsmanPortrait;
-  if (className == 'bowman') return bowmanPortrait;
-  if (className == 'longbowman') return longbowmanPortrait;
-  if (className == 'ruffian') return ruffianPortrait;
-  if (className == 'thug') return thugPortrait;
-  if (className == 'heavy') return heavyInfantryPortrait;
-  if (className == 'mage') return magePortrait;
-  if (className == 'cleric') return whiteMagePortrait;
+  if (className == 'peasant') return anySprites.peasantPortrait;
+  if (className == 'thief') return anySprites.thiefPortrait;
+  if (className == 'rogue') return anySprites.thiefPortrait;
+  if (className == 'swordsman') return anySprites.swordsmanPortrait;
+  if (className == 'woodsman') return anySprites.woodsmanPortrait;
+  if (className == 'bowman') return anySprites.bowmanPortrait;
+  if (className == 'longbowman') return anySprites.longbowmanPortrait;
+  if (className == 'ruffian') return anySprites.ruffianPortrait;
+  if (className == 'thug') return anySprites.thugPortrait;
+  if (className == 'heavy') return anySprites.heavyInfantryPortrait;
+  if (className == 'mage') return anySprites.magePortrait;
+  if (className == 'cleric') return anySprites.whiteMagePortrait;
   return peasantPortrait;
 }
 
 export function getPortrait(key: string): string {
-  if (key == 'grunt') return gruntPortrait;
-  if (key == 'lady') return ladyPortrait;
-  if (key == 'general') return generalPortrait;
+  if (key == 'grunt') return anySprites.gruntPortrait;
+  if (key == 'lady') return anySprites.ladyPortrait;
+  if (key == 'general') return anySprites.generalPortrait;
   return gruntPortrait;
 }
 
 export function getStatusImage(statusDataId: string): string {
-  if (statusDataId == 'poisoned') return greenDrip
-  if (statusDataId == 'rage') return rage
-  if (statusDataId == 'fervor') return rage
-  if (statusDataId == 'hidden') return hidden
-  if (statusDataId == 'blessed') return heal
-  if (statusDataId == 'protected') return shield
-  if (statusDataId == 'vulnerable') return noShield
+  if (statusDataId == 'poisoned') return anySprites.poison
+  if (statusDataId == 'rage') return anySprites.rage
+  if (statusDataId == 'fervor') return anySprites.rage
+  if (statusDataId == 'hidden') return anySprites.hidden
+  if (statusDataId == 'blessed') return anySprites.heal
+  if (statusDataId == 'protected') return anySprites.shield
+  if (statusDataId == 'vulnerable') return anySprites.noShield
   return hidden
 };
 
 export function heroSpriteFromClass(className: string): string {
-  if (className == 'peasant') return peasant;
-  if (className == 'thief') return thief;
-  if (className == 'rogue') return rogue;
-  if (className == 'swordsman') return swordsman;
-  if (className == 'ruffian') return ruffian;
-  if (className == 'thug') return thug;
-  if (className == 'woodsman') return woodsman;
-  if (className == 'bowman') return bowman;
-  if (className == 'longbowman') return longbowman;
-  if (className == 'mage') return mage;
-  if (className == 'heavy') return heavyInfantry;
-  if (className == 'cleric') return whiteMage;
+  if (className == 'peasant') return anySprites.peasant;
+  if (className == 'thief') return anySprites.thief;
+  if (className == 'rogue') return anySprites.rogue;
+  if (className == 'swordsman') return anySprites.swordsman;
+  if (className == 'ruffian') return anySprites.ruffian;
+  if (className == 'thug') return anySprites.thug;
+  if (className == 'woodsman') return anySprites.woodsman;
+  if (className == 'bowman') return anySprites.bowman;
+  if (className == 'longbowman') return anySprites.longbowman;
+  if (className == 'mage') return anySprites.mage;
+  if (className == 'heavy') return anySprites.heavyInfantry;
+  if (className == 'cleric') return anySprites.whiteMage;
   return peasant;
 }
 
-export const anySprites: Record<string, string> = {
+export const anySprites = {
+  rat,
+  spearman,
+  grunt,
+  troll,
+  fireghost,
+  blankSlot: blankSlot,
+  fistSlot: fistSlot,
+  tunicSlot: tunicSlot,
+  bombSlot: bombSlot,
+  clubSlot: clubSlot,
+  daggerSlot: daggerSlot,
+  magicStaffSlot: magicStaffSlot,
+  bowSlot: bowSlot,
+  dartSlot: dartSlot,
+  ankhSlot: ankhSlot,
+  cloakSlot: cloakSlot,
+  potionSlot: potionSlot,
+  leatherSlot: leatherSlot,
+  cuirassSlot: cuirassSlot,
+  waitSlot: waitSlot,
+  skullSlot: skullSlot,
+  peasantPortrait: peasantPortrait,
+  thiefPortrait: thiefPortrait,
+  swordsmanPortrait: swordsmanPortrait,
+  woodsmanPortrait: woodsmanPortrait,
+  bowmanPortrait: bowmanPortrait,
+  longbowmanPortrait: longbowmanPortrait,
+  ruffianPortrait: ruffianPortrait,
+  thugPortrait: thugPortrait,
+  heavyInfantryPortrait: heavyInfantryPortrait,
+  magePortrait: magePortrait,
+  whiteMagePortrait: whiteMagePortrait,
+  gruntPortrait: gruntPortrait,
+  ladyPortrait: ladyPortrait,
+  generalPortrait: generalPortrait,
+  noShield: noShield,
+  hidden: hidden,
+  rage: rage,
+  peasant: peasant,
+  thief: thief,
+  rogue: rogue,
+  swordsman: swordsman,
+  ruffian: ruffian,
+  thug: thug,
+  woodsman: woodsman,
+  bowman: bowman,
+  longbowman: longbowman,
+  mage: mage,
+  heavyInfantry: heavyInfantry,
+  whiteMage: whiteMage,
   arrow: arrow,
   bomb: bomb,
   smoke: smoke,
@@ -250,15 +304,24 @@ export function getLandscape(key: LandscapeImage): string {
   return plainsLandscape;
 }
 
-export function prefetchImages() {
+export async function prefetchImages() {
   let toFetch = [castleLandscape, plainsLandscape, bridgeLandscape, grimForestLandscape]
   for (let i of Object.values(anySprites)) {
     toFetch.push(i)
   }
+  let proms: Promise<void>[] = []
   for (let i of toFetch) {
+    let p = newPromWithRes()
+    proms.push(p.prom)
+    // console.log('i')
     const img = new Image()
     img.src = i
+    img.onload = () => {
+      p.resolve()
+    }
   }
+  await Promise.all(proms)
+  console.log('images preloaded')
 }
 
-prefetchImages()
+await prefetchImages()
