@@ -38,17 +38,19 @@ export type UIEvent = typeof uiEvents[keyof typeof uiEvents]
 
 export let intraSyncUnits: { element: HTMLElement, guestArea: HTMLElement, homeArea: HTMLElement, unitId: UnitId, kind: 'enemy' | 'vas' | 'ally' }[] = []
 
-document.body.style.backgroundColor = 'aliceblue'
+document.body.style.backgroundColor = 'black'
 document.body.style.padding = '0'
 document.body.style.margin = '0'
 document.body.style.overflowWrap = 'break-word'
+
+let gameTop = document.createElement('div')
 
 let wrapGameField = document.createElement('div')
 wrapGameField.style.height = '70svh'
 wrapGameField.style.overflowY = 'auto'
 wrapGameField.style.overflowX = 'hidden'
 wrapGameField.style.backgroundColor = 'black';
-document.body.appendChild(wrapGameField)
+gameTop.appendChild(wrapGameField)
 
 export let yourSceneLabel = document.createElement('span')
 yourSceneLabel.style.position = 'absolute'
@@ -784,7 +786,7 @@ selectedDetails.style.display = 'flex';
 selectedDetails.style.position = 'relative';
 selectedDetails.style.height = '30svh';
 selectedDetails.style.backgroundImage = `url(${anySprites.sidebar})`
-document.body.appendChild(selectedDetails)
+gameTop.appendChild(selectedDetails)
 
 let selectedPortrait = document.createElement('div')
 selectedPortrait.style.backgroundImage = `url(${anySprites.minimap})`
@@ -1274,8 +1276,14 @@ async function start() {
     putHero({ playerInClient: msg.yourInfo })
     Ui.addNewConvoStates()
     Ui.ensureSelectedUnit()
-    document.querySelector<HTMLDivElement>('#loading')!.remove()
     dispatchBus(uiEvents.rerender)
+    await Ui.waitAnimStep('meleeThere')
+    document.querySelector<HTMLDivElement>('#loading')?.remove()
+    visual.style.opacity = '0'
+    visual.style.transition = `opacity ${Ui.animationDurations.meleeThere}ms ease-in-out`
+    document.body.appendChild(gameTop)
+    await Ui.nextAnimFrame()
+    visual.style.opacity = '1'
   }
 }
 
