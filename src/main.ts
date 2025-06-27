@@ -940,6 +940,7 @@ function updateSelectedStats() {
 
   let heartImg = document.createElement('img')
   heartImg.src = anySprites.heart
+  heartImg.draggable = false
   statLineHealth.appendChild(heartImg)
 
   let healthDisplay = document.createElement('div')
@@ -953,6 +954,7 @@ function updateSelectedStats() {
 
     let strImg = document.createElement('img')
     strImg.src = anySprites.arm
+    strImg.draggable = false
     statLineStrength.appendChild(strImg)
 
     let strDisplay = document.createElement('div')
@@ -966,6 +968,7 @@ function updateSelectedStats() {
 
     let agiImg = document.createElement('img')
     agiImg.src = anySprites.foot
+    agiImg.draggable = false
     statLineAgi.appendChild(agiImg)
 
     let agiDisplay = document.createElement('div')
@@ -979,6 +982,7 @@ function updateSelectedStats() {
 
     let mindImg = document.createElement('img')
     mindImg.src = anySprites.brain
+    mindImg.draggable = false
     statLineMind.appendChild(mindImg)
 
     let mindDisplay = document.createElement('div')
@@ -1022,6 +1026,7 @@ function updateSelectedStats() {
 
       let lightArmorImg = document.createElement('img')
       lightArmorImg.src = anySprites.lightShield
+      lightArmorImg.draggable = false
       lightArmorStatline.appendChild(lightArmorImg)
 
       let lightArmorNum = document.createElement('div')
@@ -1035,6 +1040,7 @@ function updateSelectedStats() {
 
       let heavyArmorImg = document.createElement('img')
       heavyArmorImg.src = anySprites.heavyShield
+      heavyArmorImg.draggable = false
       heavyArmorStatline.appendChild(heavyArmorImg)
 
       let heavyArmorNum = document.createElement('div')
@@ -1048,6 +1054,7 @@ function updateSelectedStats() {
 
       let damagesImg = document.createElement('img')
       damagesImg.src = anySprites.sword
+      damagesImg.draggable = false
       damagesStatline.appendChild(damagesImg)
 
       let damagesNum = document.createElement('div')
@@ -1061,6 +1068,7 @@ function updateSelectedStats() {
 
       let strikesImg = document.createElement('img')
       strikesImg.src = anySprites.arrows
+      strikesImg.draggable = false
       strikesStatline.appendChild(strikesImg)
 
       let damagesNum = document.createElement('div')
@@ -1074,6 +1082,7 @@ function updateSelectedStats() {
 
       let speedImg = document.createElement('img')
       speedImg.src = anySprites.footy
+      speedImg.draggable = false
       speedStatline.appendChild(speedImg)
 
       let speedNum = document.createElement('div')
